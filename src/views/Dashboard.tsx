@@ -91,10 +91,10 @@ export default function Dashboard({ role }: DashboardProps) {
   };
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-4 md:p-8 space-y-6 md:space-y-8">
       <div>
-        <h2 className="text-3xl font-black tracking-tight">Хяналтын самбар</h2>
-        <p className="text-on-secondary-container mt-1">
+        <h2 className="text-2xl md:text-3xl font-black tracking-tight">Хяналтын самбар</h2>
+        <p className="text-sm md:text-base text-on-secondary-container mt-1">
           Зөрчил, төлбөр, машин гаргалтын нэгдсэн мэдээлэл.
         </p>
       </div>
@@ -135,13 +135,51 @@ export default function Dashboard({ role }: DashboardProps) {
 
       {message && <p className="text-sm font-semibold text-primary">{message}</p>}
 
-      <section className="bg-white rounded-xl shadow-ambient overflow-hidden">
+      <section className="md:hidden space-y-3">
+        {!loading && rows.length === 0 && (
+          <div className="bg-white rounded-xl p-4 text-sm text-on-secondary-container shadow-ambient">Бүртгэл олдсонгүй.</div>
+        )}
+        {!loading && rows.map((row) => (
+          <div key={`mobile-${row.id}`} className="bg-white rounded-xl p-4 shadow-ambient space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="font-black text-lg">{row.plate}</p>
+              <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusClass(row.status)}`}>
+                {formatStatus(row.status)}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <p className="text-on-secondary-container">Төрөл</p>
+              <p className="font-semibold text-right">{row.car_type}</p>
+              <p className="text-on-secondary-container">Суурь торгууль</p>
+              <p className="font-semibold text-right">{formatMoney(row.base_penalty)}</p>
+              <p className="text-on-secondary-container">Хоног</p>
+              <p className="font-semibold text-right">{row.nights}</p>
+              <p className="text-on-secondary-container">Нийт</p>
+              <p className="font-black text-right">{formatMoney(row.total_amount)}</p>
+            </div>
+            {role !== 'user' && (
+              <button
+                onClick={() => void markReleased(row.id, row.status)}
+                disabled={row.status !== 'paid' || releasingId === row.id}
+                className="w-full px-3 py-2 rounded-lg bg-primary text-white disabled:opacity-40 inline-flex items-center justify-center gap-2"
+              >
+                {releasingId === row.id && (
+                  <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                )}
+                Машин гаргах
+              </button>
+            )}
+          </div>
+        ))}
+      </section>
+
+      <section className="hidden md:block bg-white rounded-xl shadow-ambient overflow-hidden">
         <div className="px-6 py-4 border-b border-surface-low flex items-center justify-between">
           <h3 className="font-bold">Сүүлийн зөрчил бүртгэл</h3>
           <button
             onClick={() => void loadCases(true)}
             disabled={refreshing}
-            className="text-sm px-3 py-1 bg-surface-low rounded-md inline-flex items-center gap-2 disabled:opacity-60"
+            className="text-xs md:text-sm px-3 py-1 bg-surface-low rounded-md inline-flex items-center gap-2 disabled:opacity-60"
           >
             {refreshing && <span className="inline-block w-4 h-4 border-2 border-slate-400/40 border-t-slate-500 rounded-full animate-spin" />}
             Дахин ачаалах

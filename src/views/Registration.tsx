@@ -63,15 +63,15 @@ export default function Registration() {
   };
 
   return (
-    <div className="p-10 max-w-4xl mx-auto w-full space-y-6">
+    <div className="p-4 md:p-10 max-w-4xl mx-auto w-full space-y-6">
       <div>
-        <h2 className="text-3xl font-black">Зөрчил бүртгэх</h2>
-        <p className="text-on-secondary-container mt-1">
+        <h2 className="text-2xl md:text-3xl font-black">Зөрчил бүртгэх</h2>
+        <p className="text-sm md:text-base text-on-secondary-container mt-1">
           Машины дугаар, төрөл, хоног, байршлыг оруулж торгуулийг бүртгэнэ.
         </p>
       </div>
 
-      <div className="bg-surface-low p-8 rounded-[20px]">
+      <div className="bg-surface-low p-4 md:p-8 rounded-[20px]">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="space-y-2">
             <label className="text-xs font-bold text-on-secondary-container uppercase tracking-wider">Улсын дугаар</label>

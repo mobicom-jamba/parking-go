@@ -26,7 +26,7 @@ export default function Sidebar({ currentView, onNavigate, role }: SidebarProps)
   const navItems = role === 'superadmin' ? superAdminItems : workerItems;
 
   return (
-    <aside className="flex flex-col h-screen w-64 p-4 bg-slate-50 border-r-0 font-sans sticky top-0">
+    <aside className="hidden md:flex flex-col h-screen w-64 p-4 bg-slate-50 border-r-0 font-sans sticky top-0">
       <button
         onClick={() => onNavigate('dashboard')}
         className="flex items-center gap-3 px-2 mb-10 cursor-pointer text-left"

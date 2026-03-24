@@ -49,7 +49,7 @@ export default function PaymentDetails({ plateNumber, caseData, onPaid, onBack }
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-surface">
-      <nav className="flex justify-between items-center h-16 px-6 w-full max-w-md bg-white/80 backdrop-blur-md sticky top-0 z-50">
+      <nav className="flex justify-between items-center h-14 md:h-16 px-4 md:px-6 w-full max-w-md bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <button onClick={onBack} className="text-on-surface hover:text-primary transition-colors cursor-pointer">
           <ArrowLeft size={22} />
         </button>
@@ -59,22 +59,22 @@ export default function PaymentDetails({ plateNumber, caseData, onPaid, onBack }
         <div className="w-[22px]" />
       </nav>
 
-      <main className="w-full max-w-md px-6 py-8 flex-1 flex flex-col">
-        <section className="text-center mb-10">
+      <main className="w-full max-w-md px-4 md:px-6 py-6 md:py-8 flex-1 flex flex-col">
+        <section className="text-center mb-6 md:mb-10">
           <div className="inline-flex items-center px-3 py-1 bg-primary/10 rounded-full mb-4">
             {isPaid ? <CircleCheckBig className="text-green-700 mr-2" size={14} /> : <AlertTriangle className="text-primary mr-2" size={14} />}
             <span className="text-primary font-bold text-xs uppercase tracking-wider">{isPaid ? 'Төлсөн' : 'Төлөөгүй'}</span>
           </div>
           <h2 className="text-on-secondary-container text-sm font-medium mb-1">Нийт төлөх дүн</h2>
           <div className="flex flex-col items-center">
-            <span className="text-5xl font-extrabold tracking-tight text-on-surface mb-2">
+            <span className="text-4xl md:text-5xl font-extrabold tracking-tight text-on-surface mb-2">
               {formatMoney(data.total_amount)}
             </span>
             <div className="h-1 w-12 bg-primary rounded-full"></div>
           </div>
         </section>
 
-        <section className="bg-white rounded-xl p-6 shadow-sm mb-8 space-y-6">
+        <section className="bg-white rounded-xl p-4 md:p-6 shadow-sm mb-6 md:mb-8 space-y-5 md:space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg bg-surface-low flex items-center justify-center">
@@ -87,7 +87,7 @@ export default function PaymentDetails({ plateNumber, caseData, onPaid, onBack }
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
             <div className="p-4 bg-surface-low rounded-lg">
               <p className="text-[10px] text-on-secondary-container uppercase tracking-wider mb-1">Суурь торгууль</p>
               <p className="text-lg font-bold text-on-surface">{formatMoney(data.base_penalty)}</p>
@@ -116,7 +116,7 @@ export default function PaymentDetails({ plateNumber, caseData, onPaid, onBack }
           </div>
         </section>
 
-        <div className="mt-auto pb-6">
+        <div className="mt-auto pb-4 md:pb-6">
           <button
             onClick={handlePay}
             disabled={isPaid || paying}

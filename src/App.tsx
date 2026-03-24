@@ -97,7 +97,7 @@ export default function App() {
   }, [location.pathname]);
 
   const AdminShell = ({ children }: { children: ReactNode }) => (
-    <div className="flex h-screen bg-surface text-on-surface font-sans overflow-hidden">
+    <div className="md:flex min-h-screen md:h-screen bg-surface text-on-surface font-sans md:overflow-hidden">
       <Sidebar
         currentView={currentAdminView}
         onNavigate={(view) => {
@@ -107,9 +107,31 @@ export default function App() {
         }}
         role={role}
       />
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+      <div className="flex-1 flex flex-col min-h-screen md:h-screen md:overflow-hidden">
         <TopBar role={role} onRoleChange={handleRoleChange} />
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        <div className="md:hidden px-4 py-3 border-b border-surface-low bg-white/80 backdrop-blur">
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => navigate('/admin/dashboard')}
+              className={`py-2 rounded-lg text-xs font-semibold ${currentAdminView === 'dashboard' ? 'bg-primary text-white' : 'bg-surface-low text-on-surface'}`}
+            >
+              Самбар
+            </button>
+            <button
+              onClick={() => navigate('/admin/registration')}
+              className={`py-2 rounded-lg text-xs font-semibold ${currentAdminView === 'registration' ? 'bg-primary text-white' : 'bg-surface-low text-on-surface'}`}
+            >
+              Бүртгэх
+            </button>
+            <button
+              onClick={() => navigate('/fine-check')}
+              className="py-2 rounded-lg text-xs font-semibold bg-surface-low text-on-surface"
+            >
+              Шалгах
+            </button>
+          </div>
+        </div>
+        <main className="flex-1 md:overflow-y-auto">{children}</main>
       </div>
     </div>
   );
