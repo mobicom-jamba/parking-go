@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Search,
   ShieldCheck,
@@ -8,16 +9,22 @@ import {
   HelpCircle,
   ParkingCircle
 } from 'lucide-react';
+import { formatMoney, type ParkingCase } from '../lib/supabase';
 
 interface FineCheckerProps {
   onSearch: (plate: string) => Promise<void>;
+  onPlateSuggestions: (platePrefix: string) => Promise<ParkingCase[]>;
+  onSelectCase: (item: ParkingCase) => void;
   loading: boolean;
   error: string;
 }
 
-export default function FineChecker({ onSearch, loading, error }: FineCheckerProps) {
+export default function FineChecker({ onSearch, onPlateSuggestions, onSelectCase, loading, error }: FineCheckerProps) {
+  const navigate = useNavigate();
   const [plateNumber, setPlateNumber] = useState('');
   const [formatError, setFormatError] = useState('');
+  const [suggestions, setSuggestions] = useState<ParkingCase[]>([]);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
 
   const PLATE_REGEX = /^\d{4}\s[А-ЯӨҮЁ]{3}$/;
 
@@ -48,17 +55,38 @@ export default function FineChecker({ onSearch, loading, error }: FineCheckerPro
     }
   };
 
+  useEffect(() => {
+    const normalized = normalizePlateInput(plateNumber);
+    if (!normalized.trim()) {
+      setSuggestions([]);
+      return;
+    }
+
+    const timer = window.setTimeout(async () => {
+      setSuggestionLoading(true);
+      const results = await onPlateSuggestions(normalized);
+      setSuggestions(results);
+      setSuggestionLoading(false);
+    }, 350);
+
+    return () => window.clearTimeout(timer);
+  }, [plateNumber]);
+
   return (
     <div className="min-h-screen flex flex-col bg-surface">
       {/* TopAppBar */}
       <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl shadow-[0_4px_20px_rgba(71,85,105,0.06)]">
         <div className="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto">
-          <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/fine-check')}
+            className="flex items-center gap-2 cursor-pointer"
+            aria-label="Нүүр хуудас руу очих"
+          >
             <ParkingCircle className="text-primary" size={28} />
             <span className="text-xl font-extrabold tracking-tighter text-primary">
               ParkCheck
             </span>
-          </div>
+          </button>
           <div className="flex items-center gap-4">
             <nav className="hidden md:flex gap-8 items-center">
               <a className="text-primary font-semibold transition-colors cursor-pointer" href="#">
@@ -88,8 +116,7 @@ export default function FineChecker({ onSearch, loading, error }: FineCheckerPro
               Торгууль <span className="text-primary">шалгах</span>
             </h1>
             <p className="text-lg text-on-secondary-container max-w-lg leading-relaxed">
-              Тээврийн хэрэгслийн улсын дугаарыг оруулж торгууль болон төлбөрөө шалгана уу. Бид танд хамгийн
-              сүүлийн үеийн мэдээллийг шуурхай хүргэх болно.
+              Улсын дугаараа оруулаад торгууль, төлбөрийн мэдээллээ шууд шалгана уу.
             </p>
             {/* Decoration Element */}
             <div className="hidden lg:block relative h-32 w-full">
@@ -135,14 +162,46 @@ export default function FineChecker({ onSearch, loading, error }: FineCheckerPro
                       <Tag size={28} />
                     </div>
                   </div>
+                  {(suggestionLoading || suggestions.length > 0) && (
+                    <div className="mt-2 bg-surface rounded-xl border border-surface-highest overflow-hidden">
+                      {suggestionLoading && (
+                        <div className="px-4 py-3 text-xs text-on-secondary-container">Хайж байна...</div>
+                      )}
+                      {!suggestionLoading &&
+                        suggestions.map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => onSelectCase(item)}
+                            className="w-full text-left px-4 py-3 hover:bg-surface-low transition-colors border-b last:border-b-0 border-surface-low"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-on-surface">{item.plate}</span>
+                              <span className="text-xs text-on-secondary-container">{formatMoney(item.total_amount)}</span>
+                            </div>
+                            <p className="text-xs text-on-secondary-container mt-1">
+                              {item.car_type} • {item.district}
+                            </p>
+                          </button>
+                        ))}
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={handleSearch}
                   disabled={loading}
-                  className="w-full bg-gradient-to-br from-primary to-primary-container text-white py-5 rounded-xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg shadow-primary/20 active:scale-95 transition-transform hover:opacity-95 cursor-pointer"
+                  className="w-full bg-gradient-to-br from-primary to-primary-container text-white py-5 rounded-full font-bold text-lg flex items-center justify-center gap-3 shadow-lg shadow-primary/20 active:scale-95 transition-transform hover:opacity-95 cursor-pointer disabled:cursor-not-allowed disabled:opacity-55 disabled:shadow-none disabled:from-slate-400 disabled:to-slate-500"
                 >
-                  <Search size={22} />
-                  {loading ? 'Шалгаж байна...' : 'Шалгах'}
+                  {loading ? (
+                    <>
+                      <span className="inline-block w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      Шалгаж байна...
+                    </>
+                  ) : (
+                    <>
+                      <Search size={22} />
+                      Шалгах
+                    </>
+                  )}
                 </button>
                 {(formatError || error) && <p className="text-sm text-error font-semibold">{formatError || error}</p>}
               </div>

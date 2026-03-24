@@ -27,7 +27,11 @@ export default function Sidebar({ currentView, onNavigate, role }: SidebarProps)
 
   return (
     <aside className="flex flex-col h-screen w-64 p-4 bg-slate-50 border-r-0 font-sans sticky top-0">
-      <div className="flex items-center gap-3 px-2 mb-10">
+      <button
+        onClick={() => onNavigate('dashboard')}
+        className="flex items-center gap-3 px-2 mb-10 cursor-pointer text-left"
+        aria-label="Хянах самбар руу очих"
+      >
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-container flex items-center justify-center text-white shadow-ambient">
           <ParkingCircle size={24} />
         </div>
@@ -35,7 +39,7 @@ export default function Sidebar({ currentView, onNavigate, role }: SidebarProps)
           <h1 className="text-xl font-bold tracking-tight text-slate-900 leading-tight">Зогсоолын систем</h1>
           <p className="text-[10px] text-on-secondary-container uppercase tracking-widest font-bold">Торгуулийн удирдлага</p>
         </div>
-      </div>
+      </button>
       
       <nav className="flex-1 space-y-1">
         {navItems.map((item) => {

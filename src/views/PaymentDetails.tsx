@@ -8,6 +8,7 @@ import {
   CircleCheckBig
 } from 'lucide-react';
 import { formatMoney, supabase, type ParkingCase } from '../lib/supabase';
+import { useState } from 'react';
 
 interface PaymentDetailsProps {
   plateNumber: string;
@@ -17,6 +18,7 @@ interface PaymentDetailsProps {
 }
 
 export default function PaymentDetails({ plateNumber, caseData, onPaid, onBack }: PaymentDetailsProps) {
+  const [paying, setPaying] = useState(false);
   const data = caseData ?? {
     id: '',
     plate: plateNumber,
@@ -32,6 +34,7 @@ export default function PaymentDetails({ plateNumber, caseData, onPaid, onBack }
 
   const handlePay = async () => {
     if (!caseData?.id || isPaid) return;
+    setPaying(true);
     const { error } = await supabase
       .from('parking_cases')
       .update({
@@ -40,6 +43,7 @@ export default function PaymentDetails({ plateNumber, caseData, onPaid, onBack }
         paid_at: new Date().toISOString(),
       })
       .eq('id', caseData.id);
+    setPaying(false);
     if (!error) onPaid();
   };
 
@@ -115,11 +119,20 @@ export default function PaymentDetails({ plateNumber, caseData, onPaid, onBack }
         <div className="mt-auto pb-6">
           <button
             onClick={handlePay}
-            disabled={isPaid}
+            disabled={isPaid || paying}
             className="w-full bg-gradient-to-r from-primary to-primary-container text-white py-4 px-6 rounded-xl font-bold text-base shadow-lg active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-3 cursor-pointer hover:opacity-95 disabled:opacity-50"
           >
-            <span>{isPaid ? 'Төлбөр төлөгдсөн' : 'Төлбөр төлөх'}</span>
-            <CreditCard size={20} />
+            {paying ? (
+              <>
+                <span className="inline-block w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                <span>Боловсруулж байна...</span>
+              </>
+            ) : (
+              <>
+                <span>{isPaid ? 'Төлбөр төлөгдсөн' : 'Төлбөр төлөх'}</span>
+                <CreditCard size={20} />
+              </>
+            )}
           </button>
           <p className="text-center text-[11px] text-on-secondary-container mt-4 px-6">
             {isPaid ? 'Төлбөр амжилттай баталгаажсан.' : 'Төлбөр амжилттай болсны дараа ажилтан машиныг гаргана.'}

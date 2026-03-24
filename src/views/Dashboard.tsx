@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Clock3, ShieldCheck, Wallet } from 'lucide-react';
 import { formatMoney, supabase, type ParkingCase, type UserRole } from '../lib/supabase';
 
@@ -22,8 +22,11 @@ export default function Dashboard({ role }: DashboardProps) {
   const [rows, setRows] = useState<ParkingCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [releasingId, setReleasingId] = useState<string | null>(null);
 
-  const loadCases = async () => {
+  const loadCases = useCallback(async (withSpinner = false) => {
+    if (withSpinner) setRefreshing(true);
     setLoading(true);
     const { data, error } = await supabase
       .from('parking_cases')
@@ -31,16 +34,27 @@ export default function Dashboard({ role }: DashboardProps) {
       .order('created_at', { ascending: false })
       .limit(100);
     setLoading(false);
+    if (withSpinner) setRefreshing(false);
     if (error) {
       setMessage('Өгөгдөл ачааллахад алдаа гарлаа.');
       return;
     }
     setRows((data as ParkingCase[]) || []);
-  };
+  }, []);
 
   useEffect(() => {
     void loadCases();
-  }, []);
+    const channel = supabase
+      .channel('parking-cases-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'parking_cases' }, () => {
+        void loadCases();
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [loadCases]);
 
   const stats = useMemo(() => {
     const total = rows.length;
@@ -62,10 +76,12 @@ export default function Dashboard({ role }: DashboardProps) {
     if (!confirmed) {
       return;
     }
+    setReleasingId(id);
     const { error } = await supabase
       .from('parking_cases')
       .update({ status: 'released', released_at: new Date().toISOString() })
       .eq('id', id);
+    setReleasingId(null);
     if (error) {
       setMessage('Машин гаргах үед алдаа гарлаа.');
       return;
@@ -122,7 +138,14 @@ export default function Dashboard({ role }: DashboardProps) {
       <section className="bg-white rounded-xl shadow-ambient overflow-hidden">
         <div className="px-6 py-4 border-b border-surface-low flex items-center justify-between">
           <h3 className="font-bold">Сүүлийн зөрчил бүртгэл</h3>
-          <button onClick={() => void loadCases()} className="text-sm px-3 py-1 bg-surface-low rounded-md">Дахин ачаалах</button>
+          <button
+            onClick={() => void loadCases(true)}
+            disabled={refreshing}
+            className="text-sm px-3 py-1 bg-surface-low rounded-md inline-flex items-center gap-2 disabled:opacity-60"
+          >
+            {refreshing && <span className="inline-block w-4 h-4 border-2 border-slate-400/40 border-t-slate-500 rounded-full animate-spin" />}
+            Дахин ачаалах
+          </button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -169,9 +192,12 @@ export default function Dashboard({ role }: DashboardProps) {
                     {role !== 'user' ? (
                       <button
                         onClick={() => void markReleased(row.id, row.status)}
-                        disabled={row.status !== 'paid'}
-                        className="px-3 py-1 rounded-md bg-primary text-white disabled:opacity-40"
+                        disabled={row.status !== 'paid' || releasingId === row.id}
+                        className="px-3 py-1 rounded-md bg-primary text-white disabled:opacity-40 inline-flex items-center gap-2"
                       >
+                        {releasingId === row.id && (
+                          <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                        )}
                         Машин гаргах
                       </button>
                     ) : (

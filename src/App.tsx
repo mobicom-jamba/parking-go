@@ -47,6 +47,27 @@ export default function App() {
     navigate('/payment');
   };
 
+  const handlePlateSuggestions = async (platePrefix: string) => {
+    if (!platePrefix.trim()) return [];
+    const { data, error } = await supabase
+      .from('parking_cases')
+      .select('*')
+      .ilike('plate', `${platePrefix}%`)
+      .neq('status', 'released')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (error || !data) return [];
+    return data as ParkingCase[];
+  };
+
+  const handleSelectCase = (item: ParkingCase) => {
+    setSelectedCase(item);
+    setSearchedPlate(item.plate);
+    setSearchError('');
+    navigate('/payment');
+  };
+
   const handleBackToFineCheck = () => {
     navigate('/fine-check');
   };
@@ -96,7 +117,18 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/fine-check" replace />} />
-      <Route path="/fine-check" element={<FineChecker onSearch={handleFineSearch} loading={searchLoading} error={searchError} />} />
+      <Route
+        path="/fine-check"
+        element={
+          <FineChecker
+            onSearch={handleFineSearch}
+            onPlateSuggestions={handlePlateSuggestions}
+            onSelectCase={handleSelectCase}
+            loading={searchLoading}
+            error={searchError}
+          />
+        }
+      />
       <Route
         path="/payment"
         element={

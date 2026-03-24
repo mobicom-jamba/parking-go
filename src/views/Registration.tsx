@@ -150,9 +150,16 @@ export default function Registration() {
         <button
           onClick={handleSubmit}
           disabled={submitting}
-          className="mt-6 w-full py-4 rounded-xl bg-gradient-to-br from-primary to-primary-container text-white font-bold text-lg disabled:opacity-70"
+          className="mt-6 w-full py-4 rounded-xl bg-gradient-to-br from-primary to-primary-container text-white font-bold text-lg disabled:opacity-70 flex items-center justify-center gap-3"
         >
-          {submitting ? 'Хадгалж байна...' : 'Зөрчил бүртгэх'}
+          {submitting ? (
+            <>
+              <span className="inline-block w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              Хадгалж байна...
+            </>
+          ) : (
+            'Зөрчил бүртгэх'
+          )}
         </button>
         {formatError && <p className="mt-3 text-sm font-semibold text-error">{formatError}</p>}
         {submitMessage && <p className="mt-3 text-sm font-semibold text-on-secondary-container">{submitMessage}</p>}
