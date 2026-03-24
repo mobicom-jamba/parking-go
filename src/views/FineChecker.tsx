@@ -19,13 +19,13 @@ export default function FineChecker({ onSearch, loading, error }: FineCheckerPro
   const [plateNumber, setPlateNumber] = useState('');
   const [formatError, setFormatError] = useState('');
 
-  const PLATE_REGEX = /^\d{4}\s[А-ЯӨҮЁ]{2}$/;
+  const PLATE_REGEX = /^\d{4}\s[А-ЯӨҮЁ]{3}$/;
 
   const normalizePlateInput = (value: string) => {
     const upper = value.toUpperCase();
     const stripped = upper.replace(/\s+/g, '');
     const digits = stripped.replace(/\D/g, '').slice(0, 4);
-    const rawLetters = stripped.slice(digits.length).replace(/[^А-ЯӨҮЁ]/g, '').slice(0, 2);
+    const rawLetters = stripped.slice(digits.length).replace(/[^А-ЯӨҮЁ]/g, '').slice(0, 3);
     return rawLetters.length > 0 ? `${digits} ${rawLetters}` : digits;
   };
 
@@ -34,7 +34,7 @@ export default function FineChecker({ onSearch, loading, error }: FineCheckerPro
     setPlateNumber(normalized);
 
     if (!PLATE_REGEX.test(normalized)) {
-      setFormatError('Улсын дугаар 4 тоо + 2 үсэг байх ёстой. Жишээ: 1234 УБ');
+      setFormatError('Улсын дугаарын формат буруу байна. Жишээ: 1234 УБА');
       return;
     }
 
@@ -121,10 +121,10 @@ export default function FineChecker({ onSearch, loading, error }: FineCheckerPro
                   <div className="relative group">
                     <input
                       className="w-full bg-surface-highest border-none rounded-xl px-6 py-5 text-2xl font-bold tracking-widest text-on-surface placeholder:text-outline-variant focus:ring-2 focus:ring-primary/40 transition-all outline-none"
-                      placeholder="Жишээ: 0000 УБ"
+                      placeholder="Жишээ: 0000 УБА"
                       type="text"
                       value={plateNumber}
-                      maxLength={7}
+                      maxLength={8}
                       onChange={(e) => {
                         setPlateNumber(normalizePlateInput(e.target.value));
                         if (formatError) setFormatError('');

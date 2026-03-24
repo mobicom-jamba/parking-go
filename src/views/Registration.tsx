@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import DatePicker from 'react-datepicker';
+import { ChevronDown } from 'lucide-react';
 import { CAR_TYPE_OPTIONS, supabase } from '../lib/supabase';
 
 export default function Registration() {
@@ -7,20 +8,19 @@ export default function Registration() {
   const [vehicleType, setVehicleType] = useState<'суудлын' | 'жийп' | 'ачааны' | 'автобус'>('суудлын');
   const [district, setDistrict] = useState('Хан-Уул дүүрэг');
   const [nights, setNights] = useState(0);
-  const [workerName, setWorkerName] = useState('Ажилтан');
   const [note, setNote] = useState('Зогсоолын дүрэм зөрчсөн');
   const [registeredDate, setRegisteredDate] = useState<Date>(new Date());
   const [submitting, setSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
   const [formatError, setFormatError] = useState('');
 
-  const PLATE_REGEX = /^\d{4}\s[А-ЯӨҮЁ]{2}$/;
+  const PLATE_REGEX = /^\d{4}\s[А-ЯӨҮЁ]{3}$/;
 
   const normalizePlateInput = (value: string) => {
     const upper = value.toUpperCase();
     const stripped = upper.replace(/\s+/g, '');
     const digits = stripped.replace(/\D/g, '').slice(0, 4);
-    const rawLetters = stripped.slice(digits.length).replace(/[^А-ЯӨҮЁ]/g, '').slice(0, 2);
+    const rawLetters = stripped.slice(digits.length).replace(/[^А-ЯӨҮЁ]/g, '').slice(0, 3);
     return rawLetters.length > 0 ? `${digits} ${rawLetters}` : digits;
   };
 
@@ -28,7 +28,7 @@ export default function Registration() {
     const cleanPlate = normalizePlateInput(plate);
     setPlate(cleanPlate);
     if (!PLATE_REGEX.test(cleanPlate)) {
-      setFormatError('Улсын дугаар 4 тоо + 2 үсэг байх ёстой. Жишээ: 1234 УБ');
+      setFormatError('Улсын дугаар 4 тоо + 3 үсэг байх ёстой. Жишээ: 1234 УБА');
       return;
     }
     setFormatError('');
@@ -43,7 +43,7 @@ export default function Registration() {
       base_penalty: selected?.penalty ?? 40000,
       nights,
       district,
-      worker_name: workerName,
+      worker_name: 'Ажилтан',
       violation_note: note,
       status: 'unpaid',
       registered_at: registeredDate.toISOString(),
@@ -77,9 +77,9 @@ export default function Registration() {
             <label className="text-xs font-bold text-on-secondary-container uppercase tracking-wider">Улсын дугаар</label>
             <input
               className="w-full bg-white rounded-xl p-4 text-lg font-bold outline-none"
-              placeholder="Жишээ: 1234 УБ"
+              placeholder="Жишээ: 1234 УБА"
               type="text"
-              maxLength={7}
+              maxLength={8}
               value={plate}
               onChange={(e) => setPlate(normalizePlateInput(e.target.value))}
             />
@@ -87,17 +87,20 @@ export default function Registration() {
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-on-secondary-container uppercase tracking-wider">Машины төрөл</label>
-            <select
-              className="w-full bg-white rounded-xl p-4 outline-none"
-              value={vehicleType}
-              onChange={(e) => setVehicleType(e.target.value as 'суудлын' | 'жийп' | 'ачааны' | 'автобус')}
-            >
-              {CAR_TYPE_OPTIONS.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label} ({item.penalty.toLocaleString('mn-MN')} ₮)
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <select
+                className="w-full bg-white rounded-xl p-4 pr-12 outline-none border border-surface-high focus:border-primary focus:ring-2 focus:ring-primary/20 appearance-none text-on-surface font-semibold"
+                value={vehicleType}
+                onChange={(e) => setVehicleType(e.target.value as 'суудлын' | 'жийп' | 'ачааны' | 'автобус')}
+              >
+                {CAR_TYPE_OPTIONS.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label} ({item.penalty.toLocaleString('mn-MN')} ₮)
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-on-secondary-container pointer-events-none" size={18} />
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -126,16 +129,11 @@ export default function Registration() {
               selected={registeredDate}
               onChange={(date) => setRegisteredDate(date ?? new Date())}
               dateFormat="yyyy-MM-dd"
-              className="w-full bg-white rounded-xl p-4 outline-none"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-on-secondary-container uppercase tracking-wider">Бүртгэсэн ажилтан</label>
-            <input
-              className="w-full bg-white rounded-xl p-4 outline-none"
-              value={workerName}
-              onChange={(e) => setWorkerName(e.target.value)}
+              className="w-full bg-white rounded-xl p-4 outline-none border border-surface-high focus:border-primary focus:ring-2 focus:ring-primary/20"
+              calendarClassName="!border-0 !shadow-xl !rounded-2xl"
+              dayClassName={() => "hover:!bg-primary/10 !rounded-md"}
+              popperClassName="!z-50"
+              showPopperArrow={false}
             />
           </div>
 

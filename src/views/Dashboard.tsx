@@ -58,6 +58,10 @@ export default function Dashboard({ role }: DashboardProps) {
       setMessage('Зөвхөн төлбөр төлсөн машиныг гаргах боломжтой.');
       return;
     }
+    const confirmed = window.confirm('Энэ машиныг гаргасан гэж баталгаажуулах уу?');
+    if (!confirmed) {
+      return;
+    }
     const { error } = await supabase
       .from('parking_cases')
       .update({ status: 'released', released_at: new Date().toISOString() })
@@ -80,26 +84,37 @@ export default function Dashboard({ role }: DashboardProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-        <div className="bg-white rounded-xl p-4 shadow-ambient">
-          <p className="text-xs text-on-secondary-container">Нийт бүртгэл</p>
-          <p className="text-2xl font-black">{stats.total}</p>
-        </div>
-        <div className="bg-white rounded-xl p-4 shadow-ambient">
-          <div className="flex items-center gap-2 text-error"><Clock3 size={16} /><span className="text-xs">Төлөөгүй</span></div>
-          <p className="text-2xl font-black">{stats.unpaid}</p>
-        </div>
-        <div className="bg-white rounded-xl p-4 shadow-ambient">
-          <div className="flex items-center gap-2 text-primary"><CheckCircle2 size={16} /><span className="text-xs">Төлсөн</span></div>
-          <p className="text-2xl font-black">{stats.paid}</p>
-        </div>
-        <div className="bg-white rounded-xl p-4 shadow-ambient">
-          <div className="flex items-center gap-2 text-green-700"><ShieldCheck size={16} /><span className="text-xs">Машин гарсан</span></div>
-          <p className="text-2xl font-black">{stats.released}</p>
-        </div>
-        <div className="bg-gradient-to-br from-primary to-primary-container rounded-xl p-4 text-white shadow-ambient">
-          <div className="flex items-center gap-2"><Wallet size={16} /><span className="text-xs">Нийт орлого</span></div>
-          <p className="text-2xl font-black">{formatMoney(stats.revenue)}</p>
-        </div>
+        {loading ? (
+          Array.from({ length: 5 }).map((_, idx) => (
+            <div key={idx} className="bg-white rounded-xl p-4 shadow-ambient animate-pulse">
+              <div className="h-3 w-24 bg-slate-200 rounded mb-3" />
+              <div className="h-7 w-16 bg-slate-300 rounded" />
+            </div>
+          ))
+        ) : (
+          <>
+            <div className="bg-white rounded-xl p-4 shadow-ambient">
+              <p className="text-xs text-on-secondary-container">Нийт бүртгэл</p>
+              <p className="text-2xl font-black">{stats.total}</p>
+            </div>
+            <div className="bg-white rounded-xl p-4 shadow-ambient">
+              <div className="flex items-center gap-2 text-error"><Clock3 size={16} /><span className="text-xs">Төлөөгүй</span></div>
+              <p className="text-2xl font-black">{stats.unpaid}</p>
+            </div>
+            <div className="bg-white rounded-xl p-4 shadow-ambient">
+              <div className="flex items-center gap-2 text-primary"><CheckCircle2 size={16} /><span className="text-xs">Төлсөн</span></div>
+              <p className="text-2xl font-black">{stats.paid}</p>
+            </div>
+            <div className="bg-white rounded-xl p-4 shadow-ambient">
+              <div className="flex items-center gap-2 text-green-700"><ShieldCheck size={16} /><span className="text-xs">Машин гарсан</span></div>
+              <p className="text-2xl font-black">{stats.released}</p>
+            </div>
+            <div className="bg-gradient-to-br from-primary to-primary-container rounded-xl p-4 text-white shadow-ambient">
+              <div className="flex items-center gap-2"><Wallet size={16} /><span className="text-xs">Нийт орлого</span></div>
+              <p className="text-2xl font-black">{formatMoney(stats.revenue)}</p>
+            </div>
+          </>
+        )}
       </div>
 
       {message && <p className="text-sm font-semibold text-primary">{message}</p>}
@@ -123,9 +138,18 @@ export default function Dashboard({ role }: DashboardProps) {
               </tr>
             </thead>
             <tbody>
-              {loading && (
-                <tr><td className="px-4 py-5 text-on-secondary-container" colSpan={7}>Уншиж байна...</td></tr>
-              )}
+              {loading &&
+                Array.from({ length: 6 }).map((_, idx) => (
+                  <tr key={`skeleton-${idx}`} className="border-t border-surface-low animate-pulse">
+                    <td className="px-4 py-4"><div className="h-4 w-20 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-4"><div className="h-4 w-16 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-4"><div className="h-4 w-24 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-4"><div className="h-4 w-8 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-4"><div className="h-4 w-24 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-4"><div className="h-6 w-20 bg-slate-200 rounded-full" /></td>
+                    <td className="px-4 py-4"><div className="h-8 w-24 bg-slate-200 rounded-md" /></td>
+                  </tr>
+                ))}
               {!loading && rows.length === 0 && (
                 <tr><td className="px-4 py-5 text-on-secondary-container" colSpan={7}>Бүртгэл олдсонгүй.</td></tr>
               )}
