@@ -8,7 +8,7 @@ drop table if exists public.parking_cases;
 
 create table public.parking_cases (
   id uuid primary key default gen_random_uuid(),
-  plate text not null,
+  plate text not null check (plate ~ '^[0-9]{4}\s[А-ЯӨҮЁ]{3}$'),
   car_type text not null check (car_type in ('суудлын', 'жийп', 'ачааны', 'автобус')),
   base_penalty integer not null check (base_penalty in (40000, 50000, 60000, 80000)),
   nights integer not null default 0 check (nights >= 0),
@@ -56,7 +56,7 @@ with check (true);
 
 insert into public.parking_cases (plate, car_type, base_penalty, nights, district, violation_note, worker_name, status)
 values
-  ('1234 УБ', 'суудлын', 40000, 2, 'Хан-Уул дүүрэг', 'Зогсоолын дүрэм зөрчсөн', 'Б. Бат', 'unpaid'),
-  ('5678 АБ', 'жийп', 50000, 1, 'Баянгол дүүрэг', 'Хориглосон бүсэд зогссон', 'Г. Сүрэн', 'paid'),
-  ('9012 ТУ', 'ачааны', 60000, 3, 'Сүхбаатар дүүрэг', 'Тэмдэг, тэмдэглэгээ зөрчсөн', 'Б. Бат', 'released'),
-  ('3456 УН', 'автобус', 80000, 0, 'Чингэлтэй дүүрэг', 'Нийтийн замд саад учруулсан', 'Д. Төгөлдөр', 'unpaid');
+  ('1234 УБА', 'суудлын', 40000, 2, 'Хан-Уул дүүрэг', 'Зогсоолын дүрэм зөрчсөн', 'Б. Бат', 'unpaid'),
+  ('5678 АБВ', 'жийп', 50000, 1, 'Баянгол дүүрэг', 'Хориглосон бүсэд зогссон', 'Г. Сүрэн', 'paid'),
+  ('9012 ТУХ', 'ачааны', 60000, 3, 'Сүхбаатар дүүрэг', 'Тэмдэг, тэмдэглэгээ зөрчсөн', 'Б. Бат', 'released'),
+  ('3456 УНЗ', 'автобус', 80000, 0, 'Чингэлтэй дүүрэг', 'Нийтийн замд саад учруулсан', 'Д. Төгөлдөр', 'unpaid');
