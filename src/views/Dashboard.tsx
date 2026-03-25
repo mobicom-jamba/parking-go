@@ -7,15 +7,19 @@ interface DashboardProps {
 }
 
 function formatStatus(status: ParkingCase['status']) {
-  if (status === 'paid') return 'Төлсөн';
-  if (status === 'released') return 'Машин гарсан';
-  return 'Төлөөгүй';
+  if (status === 'IMPOUNDED') return 'Хоригдсон';
+  if (status === 'PENDING_PAYMENT') return 'Төлбөр хүлээгдэж байна';
+  if (status === 'PAID') return 'Төлсөн';
+  if (status === 'READY_FOR_PICKUP') return 'Бэлтгэгдсэн';
+  return 'Машин гарсан';
 }
 
 function statusClass(status: ParkingCase['status']) {
-  if (status === 'paid') return 'bg-indigo-100 text-indigo-700';
-  if (status === 'released') return 'bg-green-100 text-green-700';
-  return 'bg-red-100 text-red-700';
+  if (status === 'PENDING_PAYMENT') return 'bg-amber-100 text-amber-800';
+  if (status === 'PAID') return 'bg-indigo-100 text-indigo-700';
+  if (status === 'READY_FOR_PICKUP') return 'bg-green-100 text-green-700';
+  if (status === 'RELEASED') return 'bg-slate-200 text-slate-700';
+  return 'bg-slate-100 text-slate-700';
 }
 
 export default function Dashboard({ role }: DashboardProps) {
@@ -23,7 +27,7 @@ export default function Dashboard({ role }: DashboardProps) {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [refreshing, setRefreshing] = useState(false);
-  const [releasingId, setReleasingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const loadCases = useCallback(async (withSpinner = false) => {
     if (withSpinner) setRefreshing(true);
@@ -58,30 +62,98 @@ export default function Dashboard({ role }: DashboardProps) {
 
   const stats = useMemo(() => {
     const total = rows.length;
-    const unpaid = rows.filter((r) => r.status === 'unpaid').length;
-    const paid = rows.filter((r) => r.status === 'paid').length;
-    const released = rows.filter((r) => r.status === 'released').length;
+    const pending = rows.filter((r) => r.status === 'PENDING_PAYMENT').length;
+    const paid = rows.filter((r) => r.status === 'PAID').length;
+    const ready = rows.filter((r) => r.status === 'READY_FOR_PICKUP').length;
+    const released = rows.filter((r) => r.status === 'RELEASED').length;
     const revenue = rows
-      .filter((r) => r.status === 'paid' || r.status === 'released')
-      .reduce((sum, r) => sum + (r.paid_amount ?? r.total_amount), 0);
-    return { total, unpaid, paid, released, revenue };
+      .filter((r) => r.status === 'PAID' || r.status === 'READY_FOR_PICKUP' || r.status === 'RELEASED')
+      .reduce((sum, r) => sum + r.total_amount, 0);
+    return { total, pending, paid, ready, released, revenue };
   }, [rows]);
 
+  const verifyPayment = async (id: string, status: ParkingCase['status']) => {
+    if (status !== 'PENDING_PAYMENT') {
+      setMessage('Зөвхөн төлбөр хүлээгдэж буй машиныг баталгаажуулна.');
+      return;
+    }
+    const confirmed = window.confirm('Энэ машины төлбөрийг баталгаажуулах уу?');
+    if (!confirmed) return;
+    setBusyId(id);
+
+    const { error: paymentError } = await supabase
+      .from('payments')
+      .update({ payment_status: 'success', paid_at: new Date().toISOString() })
+      .eq('case_id', id)
+      .eq('payment_status', 'pending');
+
+    if (paymentError) {
+      setBusyId(null);
+      setMessage('Төлбөр баталгаажуулах үед алдаа гарлаа.');
+      return;
+    }
+
+    const { error: caseError } = await supabase
+      .from('parking_cases')
+      .update({ status: 'PAID', status_updated_at: new Date().toISOString(), paid_at: new Date().toISOString() })
+      .eq('id', id);
+
+    setBusyId(null);
+
+    if (caseError) {
+      setMessage('Case status шинэчлэх үед алдаа гарлаа.');
+      return;
+    }
+
+    setMessage('Төлбөр баталгаажсан.');
+    await loadCases();
+  };
+
+  const markReady = async (id: string, status: ParkingCase['status']) => {
+    if (status !== 'PAID') {
+      setMessage('Зөвхөн төлсөн машиныг гаргахад бэлтгэх боломжтой.');
+      return;
+    }
+    setBusyId(id);
+    const { error } = await supabase
+      .from('parking_cases')
+      .update({
+        status: 'READY_FOR_PICKUP',
+        status_updated_at: new Date().toISOString(),
+        ready_for_pickup_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    setBusyId(null);
+
+    if (error) {
+      setMessage('Гаргахад бэлтгэх үед алдаа гарлаа.');
+      return;
+    }
+
+    setMessage('Гаргахад бэлэн боллоо.');
+    await loadCases();
+  };
+
   const markReleased = async (id: string, status: ParkingCase['status']) => {
-    if (status !== 'paid') {
-      setMessage('Зөвхөн төлбөр төлсөн машиныг гаргах боломжтой.');
+    if (status !== 'READY_FOR_PICKUP') {
+      setMessage('Зөвхөн бэлтгэгдсэн машиныг гаргах боломжтой.');
       return;
     }
     const confirmed = window.confirm('Энэ машиныг гаргасан гэж баталгаажуулах уу?');
-    if (!confirmed) {
-      return;
-    }
-    setReleasingId(id);
+    if (!confirmed) return;
+    setBusyId(id);
     const { error } = await supabase
       .from('parking_cases')
-      .update({ status: 'released', released_at: new Date().toISOString() })
+      .update({
+        status: 'RELEASED',
+        status_updated_at: new Date().toISOString(),
+        released_at: new Date().toISOString(),
+      })
       .eq('id', id);
-    setReleasingId(null);
+
+    setBusyId(null);
+
     if (error) {
       setMessage('Машин гаргах үед алдаа гарлаа.');
       return;
@@ -114,16 +186,16 @@ export default function Dashboard({ role }: DashboardProps) {
               <p className="text-2xl font-black">{stats.total}</p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-ambient">
-              <div className="flex items-center gap-2 text-error"><Clock3 size={16} /><span className="text-xs">Төлөөгүй</span></div>
-              <p className="text-2xl font-black">{stats.unpaid}</p>
+              <div className="flex items-center gap-2 text-error"><Clock3 size={16} /><span className="text-xs">Хүлээгдэж байна</span></div>
+              <p className="text-2xl font-black">{stats.pending}</p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-ambient">
               <div className="flex items-center gap-2 text-primary"><CheckCircle2 size={16} /><span className="text-xs">Төлсөн</span></div>
               <p className="text-2xl font-black">{stats.paid}</p>
             </div>
             <div className="bg-white rounded-xl p-4 shadow-ambient">
-              <div className="flex items-center gap-2 text-green-700"><ShieldCheck size={16} /><span className="text-xs">Машин гарсан</span></div>
-              <p className="text-2xl font-black">{stats.released}</p>
+              <div className="flex items-center gap-2 text-green-700"><ShieldCheck size={16} /><span className="text-xs">Гаргахад бэлэн</span></div>
+              <p className="text-2xl font-black">{stats.ready}</p>
             </div>
             <div className="bg-gradient-to-br from-primary to-primary-container rounded-xl p-4 text-white shadow-ambient">
               <div className="flex items-center gap-2"><Wallet size={16} /><span className="text-xs">Нийт орлого</span></div>
@@ -150,25 +222,15 @@ export default function Dashboard({ role }: DashboardProps) {
             <div className="grid grid-cols-2 gap-2 text-sm">
               <p className="text-on-secondary-container">Төрөл</p>
               <p className="font-semibold text-right">{row.car_type}</p>
-              <p className="text-on-secondary-container">Суурь торгууль</p>
-              <p className="font-semibold text-right">{formatMoney(row.base_penalty)}</p>
-              <p className="text-on-secondary-container">Хоног</p>
+              <p className="text-on-secondary-container">Саатуулах хашааны төлбөр</p>
+              <p className="font-semibold text-right">{formatMoney(row.impound_fee)}</p>
+              <p className="text-on-secondary-container">Зөөж шилжүүлсэн төлбөр</p>
+              <p className="font-semibold text-right">{formatMoney(row.transfer_fee)}</p>
+              <p className="text-on-secondary-container">Саатуулагдсан хоног</p>
               <p className="font-semibold text-right">{row.nights}</p>
               <p className="text-on-secondary-container">Нийт</p>
               <p className="font-black text-right">{formatMoney(row.total_amount)}</p>
             </div>
-            {role !== 'user' && (
-              <button
-                onClick={() => void markReleased(row.id, row.status)}
-                disabled={row.status !== 'paid' || releasingId === row.id}
-                className="w-full px-3 py-2 rounded-lg bg-primary text-white disabled:opacity-40 inline-flex items-center justify-center gap-2"
-              >
-                {releasingId === row.id && (
-                  <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                )}
-                Машин гаргах
-              </button>
-            )}
           </div>
         ))}
       </section>
@@ -191,8 +253,9 @@ export default function Dashboard({ role }: DashboardProps) {
               <tr>
                 <th className="px-4 py-3 text-left">Дугаар</th>
                 <th className="px-4 py-3 text-left">Төрөл</th>
-                <th className="px-4 py-3 text-left">Суурь торгууль</th>
-                <th className="px-4 py-3 text-left">Хоног</th>
+                <th className="px-4 py-3 text-left">Саатуулах хашааны төлбөр</th>
+                <th className="px-4 py-3 text-left">Зөөж шилжүүлсэн төлбөр</th>
+                <th className="px-4 py-3 text-left">Саатуулагдсан хоног</th>
                 <th className="px-4 py-3 text-left">Нийт</th>
                 <th className="px-4 py-3 text-left">Төлөв</th>
                 <th className="px-4 py-3 text-left">Үйлдэл</th>
@@ -204,21 +267,23 @@ export default function Dashboard({ role }: DashboardProps) {
                   <tr key={`skeleton-${idx}`} className="border-t border-surface-low animate-pulse">
                     <td className="px-4 py-4"><div className="h-4 w-20 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-4"><div className="h-4 w-16 bg-slate-200 rounded" /></td>
-                    <td className="px-4 py-4"><div className="h-4 w-24 bg-slate-200 rounded" /></td>
-                    <td className="px-4 py-4"><div className="h-4 w-8 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-4"><div className="h-4 w-28 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-4"><div className="h-4 w-28 bg-slate-200 rounded" /></td>
+                    <td className="px-4 py-4"><div className="h-4 w-12 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-4"><div className="h-4 w-24 bg-slate-200 rounded" /></td>
                     <td className="px-4 py-4"><div className="h-6 w-20 bg-slate-200 rounded-full" /></td>
                     <td className="px-4 py-4"><div className="h-8 w-24 bg-slate-200 rounded-md" /></td>
                   </tr>
                 ))}
               {!loading && rows.length === 0 && (
-                <tr><td className="px-4 py-5 text-on-secondary-container" colSpan={7}>Бүртгэл олдсонгүй.</td></tr>
+                <tr><td className="px-4 py-5 text-on-secondary-container" colSpan={8}>Бүртгэл олдсонгүй.</td></tr>
               )}
               {!loading && rows.map((row) => (
                 <tr key={row.id} className="border-t border-surface-low">
                   <td className="px-4 py-4 font-bold">{row.plate}</td>
                   <td className="px-4 py-4">{row.car_type}</td>
-                  <td className="px-4 py-4">{formatMoney(row.base_penalty)}</td>
+                  <td className="px-4 py-4">{formatMoney(row.impound_fee)}</td>
+                  <td className="px-4 py-4">{formatMoney(row.transfer_fee)}</td>
                   <td className="px-4 py-4">{row.nights}</td>
                   <td className="px-4 py-4 font-bold">{formatMoney(row.total_amount)}</td>
                   <td className="px-4 py-4">
@@ -227,20 +292,7 @@ export default function Dashboard({ role }: DashboardProps) {
                     </span>
                   </td>
                   <td className="px-4 py-4">
-                    {role !== 'user' ? (
-                      <button
-                        onClick={() => void markReleased(row.id, row.status)}
-                        disabled={row.status !== 'paid' || releasingId === row.id}
-                        className="px-3 py-1 rounded-md bg-primary text-white disabled:opacity-40 inline-flex items-center gap-2"
-                      >
-                        {releasingId === row.id && (
-                          <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                        )}
-                        Машин гаргах
-                      </button>
-                    ) : (
-                      <span className="text-on-secondary-container">-</span>
-                    )}
+                    <span className="text-on-secondary-container">—</span>
                   </td>
                 </tr>
               ))}

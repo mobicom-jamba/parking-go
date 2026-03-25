@@ -6,6 +6,7 @@ import Dashboard from './views/Dashboard';
 import Registration from './views/Registration';
 import FineChecker from './views/FineChecker';
 import PaymentDetails from './views/PaymentDetails';
+import WorkerQueue from './views/WorkerQueue';
 import { formatRole, supabase, type ParkingCase, type UserRole } from './lib/supabase';
 
 export default function App() {
@@ -26,7 +27,7 @@ export default function App() {
       .from('parking_cases')
       .select('*')
       .ilike('plate', plate)
-      .neq('status', 'released')
+      .neq('status', 'RELEASED')
       .order('created_at', { ascending: false })
       .limit(1);
 
@@ -53,7 +54,7 @@ export default function App() {
       .from('parking_cases')
       .select('*')
       .ilike('plate', `${platePrefix}%`)
-      .neq('status', 'released')
+      .neq('status', 'RELEASED')
       .order('created_at', { ascending: false })
       .limit(5);
 
@@ -81,18 +82,15 @@ export default function App() {
     }
   };
 
-  const handlePaid = () => {
-    if (!selectedCase) return;
-    setSelectedCase({
-      ...selectedCase,
-      status: 'paid',
-      paid_at: new Date().toISOString(),
-      paid_amount: selectedCase.total_amount,
-    });
+  const refreshSelectedCase = async (id: string) => {
+    const { data, error } = await supabase.from('parking_cases').select('*').eq('id', id).single();
+    if (error || !data) return;
+    setSelectedCase(data as ParkingCase);
   };
 
-  const currentAdminView = useMemo<'dashboard' | 'registration'>(() => {
+  const currentAdminView = useMemo<'dashboard' | 'registration' | 'queue'>(() => {
     if (location.pathname.includes('/admin/registration')) return 'registration';
+    if (location.pathname.includes('/admin/queue')) return 'queue';
     return 'dashboard';
   }, [location.pathname]);
 
@@ -103,6 +101,7 @@ export default function App() {
         onNavigate={(view) => {
           if (view === 'dashboard') navigate('/admin/dashboard');
           if (view === 'registration') navigate('/admin/registration');
+          if (view === 'queue') navigate('/admin/queue');
           if (view === 'finecheck') navigate('/fine-check');
         }}
         role={role}
@@ -110,26 +109,37 @@ export default function App() {
       <div className="flex-1 flex flex-col min-h-screen md:h-screen md:overflow-hidden">
         <TopBar role={role} onRoleChange={handleRoleChange} />
         <div className="md:hidden px-4 py-3 border-b border-surface-low bg-white/80 backdrop-blur">
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => navigate('/admin/dashboard')}
-              className={`py-2 rounded-lg text-xs font-semibold ${currentAdminView === 'dashboard' ? 'bg-primary text-white' : 'bg-surface-low text-on-surface'}`}
-            >
-              Самбар
-            </button>
-            <button
-              onClick={() => navigate('/admin/registration')}
-              className={`py-2 rounded-lg text-xs font-semibold ${currentAdminView === 'registration' ? 'bg-primary text-white' : 'bg-surface-low text-on-surface'}`}
-            >
-              Бүртгэх
-            </button>
-            <button
-              onClick={() => navigate('/fine-check')}
-              className="py-2 rounded-lg text-xs font-semibold bg-surface-low text-on-surface"
-            >
-              Шалгах
-            </button>
-          </div>
+          {role === 'user' ? (
+            <div className="grid grid-cols-1 gap-2">
+              <button
+                onClick={() => navigate('/fine-check')}
+                className="py-2 rounded-lg text-xs font-semibold bg-surface-low text-on-surface"
+              >
+                Торгууль шалгах
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={() => navigate('/admin/dashboard')}
+                className={`py-2 rounded-lg text-xs font-semibold ${currentAdminView === 'dashboard' ? 'bg-primary text-white' : 'bg-surface-low text-on-surface'}`}
+              >
+                Самбар
+              </button>
+              <button
+                onClick={() => navigate('/admin/registration')}
+                className={`py-2 rounded-lg text-xs font-semibold ${currentAdminView === 'registration' ? 'bg-primary text-white' : 'bg-surface-low text-on-surface'}`}
+              >
+                Бүртгэх
+              </button>
+              <button
+                onClick={() => navigate('/admin/queue')}
+                className={`py-2 rounded-lg text-xs font-semibold ${currentAdminView === 'queue' ? 'bg-primary text-white' : 'bg-surface-low text-on-surface'}`}
+              >
+                Жагсаалт
+              </button>
+            </div>
+          )}
         </div>
         <main className="flex-1 md:overflow-y-auto">{children}</main>
       </div>
@@ -157,7 +167,7 @@ export default function App() {
           <PaymentDetails
             plateNumber={searchedPlate}
             caseData={selectedCase}
-            onPaid={handlePaid}
+            onCaseUpdated={(id) => void refreshSelectedCase(id)}
             onBack={handleBackToFineCheck}
           />
         }
@@ -182,6 +192,18 @@ export default function App() {
           ) : (
             <AdminShell>
               <Registration />
+            </AdminShell>
+          )
+        }
+      />
+      <Route
+        path="/admin/queue"
+        element={
+          role === 'user' ? (
+            <Navigate to="/fine-check" replace />
+          ) : (
+            <AdminShell>
+              <WorkerQueue />
             </AdminShell>
           )
         }

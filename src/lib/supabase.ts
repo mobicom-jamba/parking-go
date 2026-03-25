@@ -17,31 +17,94 @@ export interface ParkingCase {
   id: string;
   plate: string;
   car_type: CarType;
-  base_penalty: number;
+  violation_type: string;
+  violation_reason: string;
+
+  location: string;
+  distance_km: number;
+
+  officer_name: string;
+  officer_rank: string;
+
+  impounded_at: string;
+
+  impound_fee: number;
+  transfer_fee: number;
   nights: number;
-  nightly_fee: number;
-  storage_fee: number;
   total_amount: number;
-  paid_amount: number | null;
-  status: 'unpaid' | 'paid' | 'released';
+
   district: string;
-  violation_note: string;
   worker_name: string;
-  registered_at: string;
+
+  status: 'IMPOUNDED' | 'PENDING_PAYMENT' | 'PAID' | 'READY_FOR_PICKUP' | 'RELEASED';
+  status_updated_at: string;
   paid_at: string | null;
+  ready_for_pickup_at: string | null;
   released_at: string | null;
+
+  created_at: string;
+}
+
+export type PaymentProvider = 'qpay';
+export type PaymentStatus = 'pending' | 'success' | 'failed';
+
+export interface Payment {
+  id: string;
+  case_id: string;
+  provider: PaymentProvider;
+  transaction_id: string;
+  amount: number;
+  currency: string;
+  payment_status: PaymentStatus;
+  paid_at: string | null;
+  failed_at: string | null;
   created_at: string;
 }
 
 export const CAR_TYPE_OPTIONS: Array<{ value: CarType; label: string; penalty: number }> = [
-  { value: 'суудлын', label: 'Суудлын машин', penalty: 40000 },
-  { value: 'жийп', label: 'Жийп', penalty: 50000 },
-  { value: 'ачааны', label: 'Ачааны машин', penalty: 60000 },
-  { value: 'автобус', label: 'Автобус', penalty: 80000 },
+  // PDF тариф: Саатуулах хашааны төлбөр
+  // Жижиг машин 8,000₮
+  // Дунд оврын машин 10,000₮
+  // Ачааны машин 15,000₮
+  // Том оврын ачааны машин / Автобус 20,000₮
+  { value: 'суудлын', label: 'Суудлын машин', penalty: 8000 },
+  { value: 'жийп', label: 'Жийп / Дунд оврын', penalty: 10000 },
+  { value: 'ачааны', label: 'Ачааны машин', penalty: 15000 },
+  { value: 'автобус', label: 'Автобус / Том оврын', penalty: 20000 },
 ];
 
 export function formatMoney(amount: number) {
   return `${amount.toLocaleString('mn-MN')} ₮`;
+}
+
+export function formatCaseStatus(status: ParkingCase['status']) {
+  switch (status) {
+    case 'IMPOUNDED':
+      return 'Импound (хоригдсон)';
+    case 'PENDING_PAYMENT':
+      return 'Төлбөр хүлээгдэж байна';
+    case 'PAID':
+      return 'Төлсөн';
+    case 'READY_FOR_PICKUP':
+      return 'Бэлтгэгдсэн (гаргахад бэлэн)';
+    case 'RELEASED':
+      return 'Машин гарсан';
+  }
+}
+
+export function statusBadgeClass(status: ParkingCase['status']) {
+  switch (status) {
+    case 'IMPOUNDED':
+      return 'bg-slate-100 text-slate-700';
+    case 'PENDING_PAYMENT':
+      return 'bg-amber-100 text-amber-700';
+    case 'PAID':
+      return 'bg-indigo-100 text-indigo-700';
+    case 'READY_FOR_PICKUP':
+      return 'bg-green-100 text-green-700';
+    case 'RELEASED':
+      return 'bg-slate-200 text-slate-700';
+  }
 }
 
 export function formatRole(role: UserRole) {

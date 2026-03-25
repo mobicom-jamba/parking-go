@@ -2,13 +2,14 @@ import {
   LayoutDashboard,
   Car,
   ParkingCircle,
-  SearchCheck
+  SearchCheck,
+  CheckCircle2
 } from 'lucide-react';
 import type { UserRole } from '../lib/supabase';
 
 interface SidebarProps {
-  currentView: 'dashboard' | 'registration';
-  onNavigate: (view: 'dashboard' | 'registration' | 'finecheck') => void;
+  currentView: 'dashboard' | 'registration' | 'queue';
+  onNavigate: (view: 'dashboard' | 'registration' | 'queue' | 'finecheck') => void;
   role: UserRole;
 }
 
@@ -16,11 +17,13 @@ export default function Sidebar({ currentView, onNavigate, role }: SidebarProps)
   const superAdminItems = [
     { id: 'dashboard', label: 'Хянах самбар', icon: LayoutDashboard },
     { id: 'registration', label: 'Зөрчил бүртгэх', icon: Car },
+    { id: 'queue', label: 'Төлбөр ба гаргалт', icon: CheckCircle2 },
     { id: 'finecheck', label: 'Хэрэглэгчийн хэсэг', icon: SearchCheck },
   ];
   const workerItems = [
     { id: 'dashboard', label: 'Хянах самбар', icon: LayoutDashboard },
     { id: 'registration', label: 'Зөрчил бүртгэх', icon: Car },
+    { id: 'queue', label: 'Төлбөр ба гаргалт', icon: CheckCircle2 },
     { id: 'finecheck', label: 'Хэрэглэгчийн хэсэг', icon: SearchCheck },
   ];
   const navItems = role === 'superadmin' ? superAdminItems : workerItems;
@@ -48,7 +51,7 @@ export default function Sidebar({ currentView, onNavigate, role }: SidebarProps)
           return (
             <button
               key={item.id}
-              onClick={() => onNavigate(item.id as 'dashboard' | 'registration' | 'finecheck')}
+              onClick={() => onNavigate(item.id as 'dashboard' | 'registration' | 'queue' | 'finecheck')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors duration-200 group ${
                 isActive
                   ? 'text-primary font-semibold bg-white shadow-sm'
