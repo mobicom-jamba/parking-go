@@ -123,14 +123,17 @@ export default function Dashboard({ role }: DashboardProps) {
 
   useEffect(() => {
     void loadCases();
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     const channel = supabase
       .channel('parking-cases-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'parking_cases' }, () => {
-        void loadCases();
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => void loadCases(), 500);
       })
       .subscribe();
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       void supabase.removeChannel(channel);
     };
   }, [loadCases]);

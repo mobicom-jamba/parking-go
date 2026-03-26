@@ -35,6 +35,7 @@ export default function Registration() {
   };
 
   const handleSubmit = async () => {
+    if (submitting) return;
     const cleanPlate = normalizePlateInput(plate);
     setPlate(cleanPlate);
     if (!PLATE_REGEX.test(cleanPlate)) {
@@ -70,89 +71,91 @@ export default function Registration() {
           : 60000
         : Math.round(billedDistanceKm * 2500);
 
-    const { data: inserted, error } = await supabase
-      .from('parking_cases')
-      .insert({
-      plate: cleanPlate,
-      car_type: vehicleType,
-      impound_fee: impoundFee,
-      transfer_fee: transferFee,
-      nights,
-      worker_name: 'Ажилтан',
-      violation_type: violationType,
-      violation_reason: note,
-      location,
-      distance_km: distanceKmNumber,
-      officer_name: officerName,
-      officer_rank: officerRank,
-      impounded_at: impoundedAt.toISOString(),
-      status: 'IMPOUNDED',
-      district: location,
-    })
-      .select('id')
-      .single();
+    try {
+      const { data: inserted, error } = await supabase
+        .from('parking_cases')
+        .insert({
+          plate: cleanPlate,
+          car_type: vehicleType,
+          impound_fee: impoundFee,
+          transfer_fee: transferFee,
+          nights,
+          worker_name: 'Ажилтан',
+          violation_type: violationType,
+          violation_reason: note,
+          location,
+          distance_km: distanceKmNumber,
+          officer_name: officerName,
+          officer_rank: officerRank,
+          impounded_at: impoundedAt.toISOString(),
+          status: 'IMPOUNDED',
+          district: location,
+        })
+        .select('id')
+        .single();
 
-    setSubmitting(false);
-
-    if (error) {
-      setToast({ message: 'Бүртгэл хадгалах үед алдаа гарлаа.', type: 'error' });
-      return;
-    }
-
-    const caseId = inserted?.id as string;
-
-    const imageSides: { side: 'front' | 'back' | 'left' | 'right'; file: File | null }[] = [
-      { side: 'front', file: frontImg },
-      { side: 'back', file: backImg },
-      { side: 'left', file: leftImg },
-      { side: 'right', file: rightImg },
-    ];
-    const imagesToUpload = imageSides.filter((s) => s.file !== null) as { side: string; file: File }[];
-
-    if (imagesToUpload.length > 0) {
-      const uploadSide = async (side: string, file: File) => {
-        const storagePath = `${caseId}/${side}/${Date.now()}-${file.name}`;
-        const { error: uploadError } = await supabase.storage.from('impound-images').upload(storagePath, file, {
-          contentType: file.type,
-          upsert: false,
-        });
-        if (uploadError) throw uploadError;
-
-        const { error: imgError } = await supabase.from('parking_case_images').insert({
-          case_id: caseId,
-          side,
-          storage_path: storagePath,
-        });
-        if (imgError) throw imgError;
-      };
-
-      try {
-        await Promise.all(imagesToUpload.map((s) => uploadSide(s.side, s.file)));
-      } catch {
-        setToast({ message: 'Зургийг хадгалах үед алдаа гарлаа.', type: 'error' });
+      if (error) {
+        setToast({ message: 'Бүртгэл хадгалах үед алдаа гарлаа.', type: 'error' });
         return;
       }
+
+      const caseId = inserted?.id as string;
+
+      const imageSides: { side: 'front' | 'back' | 'left' | 'right'; file: File | null }[] = [
+        { side: 'front', file: frontImg },
+        { side: 'back', file: backImg },
+        { side: 'left', file: leftImg },
+        { side: 'right', file: rightImg },
+      ];
+      const imagesToUpload = imageSides.filter((s) => s.file !== null) as { side: string; file: File }[];
+
+      if (imagesToUpload.length > 0) {
+        const uploadSide = async (side: string, file: File) => {
+          const storagePath = `${caseId}/${side}/${Date.now()}-${file.name}`;
+          const { error: uploadError } = await supabase.storage.from('impound-images').upload(storagePath, file, {
+            contentType: file.type,
+            upsert: false,
+          });
+          if (uploadError) throw uploadError;
+
+          const { error: imgError } = await supabase.from('parking_case_images').insert({
+            case_id: caseId,
+            side,
+            storage_path: storagePath,
+          });
+          if (imgError) throw imgError;
+        };
+
+        try {
+          await Promise.all(imagesToUpload.map((s) => uploadSide(s.side, s.file)));
+        } catch {
+          setToast({ message: 'Зургийг хадгалах үед алдаа гарлаа.', type: 'error' });
+          return;
+        }
+      }
+
+      await supabase.from('audit_logs').insert({
+        actor_name: officerName,
+        actor_role: 'worker',
+        case_id: caseId,
+        action: 'CASE_REGISTERED',
+        before_status: null,
+        after_status: 'IMPOUNDED',
+        metadata: { plate: cleanPlate, car_type: vehicleType },
+      });
+
+      setPlate('');
+      setDistanceKm('');
+      setRegisteredDate(new Date());
+      setFrontImg(null);
+      setBackImg(null);
+      setLeftImg(null);
+      setRightImg(null);
+      setSubmitMessage('');
+      setToast({ message: 'Бүртгэл амжилттай хадгалагдлаа!', type: 'success' });
+    } finally {
+      setSubmitting(false);
     }
-
-    await supabase.from('audit_logs').insert({
-      actor_name: officerName,
-      actor_role: 'worker',
-      case_id: caseId,
-      action: 'CASE_REGISTERED',
-      before_status: null,
-      after_status: 'IMPOUNDED',
-      metadata: { plate: cleanPlate, car_type: vehicleType },
-    });
-
-    setPlate('');
-    setDistanceKm('');
-    setRegisteredDate(new Date());
-    setFrontImg(null);
-    setBackImg(null);
-    setLeftImg(null);
-    setRightImg(null);
-    setSubmitMessage('');
-    setToast({ message: 'Бүртгэл амжилттай хадгалагдлаа!', type: 'success' });
   };
 
   useEffect(() => {
