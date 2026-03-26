@@ -8,7 +8,7 @@ interface DashboardProps {
 }
 
 function formatStatus(status: ParkingCase['status']) {
-  if (status === 'IMPOUNDED') return 'Хоригдсон';
+  if (status === 'IMPOUNDED') return 'Саатуулагдсан';
   if (status === 'PENDING_PAYMENT') return 'Төлбөр хүлээгдэж байна';
   if (status === 'PAID') return 'Төлсөн';
   if (status === 'READY_FOR_PICKUP') return 'Бэлтгэгдсэн';
@@ -20,7 +20,7 @@ function statusClass(status: ParkingCase['status']) {
   if (status === 'PAID') return 'bg-indigo-100 text-indigo-700';
   if (status === 'READY_FOR_PICKUP') return 'bg-green-100 text-green-700';
   if (status === 'RELEASED') return 'bg-slate-200 text-slate-700';
-  return 'bg-slate-100 text-slate-700';
+  return 'bg-slate-100 text-slate-400';
 }
 
 function formatDate(value: string) {
