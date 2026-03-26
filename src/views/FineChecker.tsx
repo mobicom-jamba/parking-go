@@ -90,7 +90,7 @@ export default function FineChecker({ onSearch, onPlateSuggestions, onSelectCase
           <div className="flex items-center gap-2 md:gap-4">
             <nav className="hidden md:flex gap-8 items-center">
               <a className="text-primary font-semibold transition-colors cursor-pointer" href="#">
-                Торгууль шалгах
+                Төлбөр шалгах
               </a>
               <a className="text-slate-500 hover:bg-slate-200/50 rounded-full px-3 py-1 transition-colors cursor-pointer" href="#">
                 Тусламж
@@ -113,10 +113,10 @@ export default function FineChecker({ onSearch, onPlateSuggestions, onSelectCase
               Албан ёсны систем
             </div>
             <h1 className="text-3xl sm:text-4xl lg:text-7xl font-extrabold text-on-surface tracking-tight leading-[1.1]">
-              Торгууль <span className="text-primary">шалгах</span>
+              Төлбөр <span className="text-primary">шалгах</span>
             </h1>
             <p className="text-base md:text-lg text-on-secondary-container max-w-lg leading-relaxed">
-              Улсын дугаараа оруулаад торгууль, төлбөрийн мэдээллээ шууд шалгана уу.
+              Улсын дугаараа оруулаад төлбөрийн мэдээллээ шууд шалгана уу.
             </p>
             {/* Decoration Element */}
             <div className="hidden lg:block relative h-32 w-full">

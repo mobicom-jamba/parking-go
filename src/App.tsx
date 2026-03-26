@@ -39,7 +39,7 @@ export default function App() {
     }
 
     if (!data || data.length === 0) {
-      setSearchError('Тухайн дугаартай торгууль олдсонгүй.');
+      setSearchError('Тухайн дугаартай төлбөрийн мэдээлэл олдсонгүй.');
       return;
     }
 
@@ -115,7 +115,7 @@ export default function App() {
                 onClick={() => navigate('/fine-check')}
                 className="py-2 rounded-lg text-xs font-semibold bg-surface-low text-on-surface"
               >
-                Торгууль шалгах
+                Төлбөр шалгах
               </button>
             </div>
           ) : (

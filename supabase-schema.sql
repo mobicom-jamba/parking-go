@@ -14,7 +14,7 @@ create table public.parking_cases (
 
   plate text not null check (plate ~ '^[0-9]{4}\s[А-ЯӨҮЁ]{3}$'),
 
-  car_type text not null check (car_type in ('суудлын', 'жийп', 'ачааны', 'автобус')),
+  car_type text not null check (car_type in ('мотоцикл', 'суудлын', 'жийп', 'ачааны', 'автобус')),
   violation_type text not null default 'Дүрэм зөрчил',
   violation_reason text not null default 'Зөрчил илэрсэн',
 
@@ -30,7 +30,9 @@ create table public.parking_cases (
   -- PDF тариф:
   -- Саатуулах хашааны төлбөр:
   -- жижиг машин 8000, дунд оврын 10000, ачааны 15000, том/автобус 20000
-  impound_fee integer not null check (impound_fee in (8000, 10000, 15000, 20000)),
+  -- 24 цагийн тарифын үнийг хоногийн тоогоор үржүүлсний дараах нийт дүн
+  -- Жишээ: 2 хоног => (суурь тариф * 2)
+  impound_fee integer not null,
   -- Зөөж шилжүүлсэн төлбөр:
   -- Хэрлэн сум дотор: 60,000
   -- Орон нутгаас: км тутам 2,500
@@ -169,10 +171,11 @@ using (bucket_id = 'impound-images');
 insert into public.parking_cases
   (plate, car_type, violation_type, violation_reason, location, distance_km, officer_name, officer_rank, impounded_at, impound_fee, transfer_fee, nights, district, status, worker_name, status_updated_at, created_at)
 values
-  ('1234 УБА', 'суудлын', 'Зогсоолын дүрэм зөрчил', 'Зогсоолын дүрэм зөрчсөн', 'Хэрлэн сум дотор', 0, 'Б. Бат', 'Ажилтан', now() - interval '5 day', 8000, 60000, 2, 'Хэрлэн сум дотор', 'IMPOUNDED', 'Б. Бат', now() - interval '5 day', now() - interval '5 day'),
-  ('5678 АБВ', 'жийп', 'Хориглосон бүс', 'Хориглосон бүсэд зогссон', 'Орон нутгаас', 20, 'Г. Сүрэн', 'Ажилтан', now() - interval '3 day', 10000, 20 * 2500, 1, 'Орон нутгаас', 'PENDING_PAYMENT', 'Г. Сүрэн', now() - interval '3 day', now() - interval '3 day'),
-  ('9012 ТУХ', 'ачааны', 'Тэмдэг, тэмдэглэгээ зөрчил', 'Тэмдэг, тэмдэглэгээ зөрчсөн', 'Хэрлэн сум дотор', 0, 'Б. Бат', 'Ажилтан', now() - interval '10 day', 15000, 60000, 3, 'Хэрлэн сум дотор', 'READY_FOR_PICKUP', 'Б. Бат', now() - interval '2 day', now() - interval '10 day'),
-  ('3456 УНЗ', 'автобус', 'Нийтийн замын саад', 'Нийтийн замд саад учруулсан', 'Орон нутгаас', 10, 'Д. Төгөлдөр', 'Ахлах', now() - interval '1 day', 20000, 10 * 2500, 0, 'Орон нутгаас', 'IMPOUNDED', 'Д. Төгөлдөр', now() - interval '1 day', now() - interval '1 day');
+  -- nights = floor(өнгөрсөн хоног) + 1
+  ('1234 УБА', 'суудлын', 'Зогсоолын дүрэм зөрчил', 'Зогсоолын дүрэм зөрчсөн', 'Хэрлэн сум дотор', 0, 'Б. Бат', 'Ажилтан', now() - interval '1 day', 8000 * 2, 60000, 2, 'Хэрлэн сум дотор', 'IMPOUNDED', 'Б. Бат', now() - interval '1 day', now() - interval '1 day'),
+  ('5678 АБВ', 'жийп', 'Хориглосон бүс', 'Хориглосон бүсэд зогссон', 'Орон нутгаас', 20, 'Г. Сүрэн', 'Ажилтан', now() - interval '12 hour', 10000 * 1, 20 * 2 * 2500, 1, 'Орон нутгаас', 'PENDING_PAYMENT', 'Г. Сүрэн', now() - interval '12 hour', now() - interval '12 hour'),
+  ('9012 ТУХ', 'ачааны', 'Тэмдэг, тэмдэглэгээ зөрчил', 'Тэмдэг, тэмдэглэгээ зөрчсөн', 'Хэрлэн сум дотор', 0, 'Б. Бат', 'Ажилтан', now() - interval '2 day', 15000 * 3, 60000, 3, 'Хэрлэн сум дотор', 'READY_FOR_PICKUP', 'Б. Бат', now() - interval '2 day', now() - interval '2 day'),
+  ('3456 УНЗ', 'автобус', 'Нийтийн замын саад', 'Нийтийн замд саад учруулсан', 'Орон нутгаас', 10, 'Д. Төгөлдөр', 'Ахлах', now() - interval '12 hour', 20000 * 1, 10 * 2 * 2500, 1, 'Орон нутгаас', 'IMPOUNDED', 'Д. Төгөлдөр', now() - interval '12 hour', now() - interval '12 hour');
 
 -- Payments seed (төлбөрийн жагсаалтын demo)
 -- 5678 АБВ: pending payment

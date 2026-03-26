@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Wallet } from 'lucide-react';
 import { formatMoney, supabase, type ParkingCase } from '../lib/supabase';
+import PlateVisual from '../components/PlateVisual';
 
 function formatStatus(status: ParkingCase['status']) {
   if (status === 'IMPOUNDED') return 'Хоригдсон';
@@ -240,7 +241,7 @@ export default function WorkerQueue() {
         {rows.map((row) => (
           <div key={`mobile-${row.id}`} className="bg-white rounded-xl p-4 shadow-ambient space-y-3">
             <div className="flex items-center justify-between">
-              <p className="font-black text-lg">{row.plate}</p>
+              <PlateVisual plate={row.plate} size="sm" />
               <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusBadgeClass(row.status)}`}>
                 {formatStatus(row.status)}
               </span>
@@ -325,7 +326,9 @@ export default function WorkerQueue() {
               {!loading &&
                 rows.map((row) => (
                   <tr key={row.id} className="border-t border-surface-low">
-                    <td className="px-4 py-4 font-bold">{row.plate}</td>
+                    <td className="px-4 py-4">
+                      <PlateVisual plate={row.plate} size="sm" />
+                    </td>
                     <td className="px-4 py-4">{row.car_type}</td>
                     <td className="px-4 py-4 font-bold">{formatMoney(row.total_amount)}</td>
                     <td className="px-4 py-4">

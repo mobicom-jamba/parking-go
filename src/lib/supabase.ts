@@ -11,7 +11,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export type UserRole = 'superadmin' | 'worker' | 'user';
 
-export type CarType = 'суудлын' | 'жийп' | 'ачааны' | 'автобус';
+export type CarType = 'мотоцикл' | 'суудлын' | 'жийп' | 'ачааны' | 'автобус';
 
 export interface ParkingCase {
   id: string;
@@ -62,6 +62,7 @@ export interface Payment {
 }
 
 export const CAR_TYPE_OPTIONS: Array<{ value: CarType; label: string; penalty: number }> = [
+  { value: 'мотоцикл', label: 'Мотоцикл', penalty: 6000 },
   // PDF тариф: Саатуулах хашааны төлбөр
   // Жижиг машин 8,000₮
   // Дунд оврын машин 10,000₮

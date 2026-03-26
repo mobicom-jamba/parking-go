@@ -7,7 +7,7 @@ import {
   CreditCard,
   CircleCheckBig
 } from 'lucide-react';
-import { formatMoney, supabase, type ParkingCase } from '../lib/supabase';
+import { formatMoney, supabase, type ParkingCase, CAR_TYPE_OPTIONS } from '../lib/supabase';
 import { useState } from 'react';
 
 interface PaymentDetailsProps {
@@ -49,6 +49,20 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
   const isPaid = data.status === 'PAID' || data.status === 'READY_FOR_PICKUP' || isReleased;
   const isPendingPayment = data.status === 'PENDING_PAYMENT';
 
+  const computeNightsFromImpoundedAt = (impoundedAtIso: string) => {
+    const impoundedAt = new Date(impoundedAtIso);
+    const now = new Date();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const elapsedMs = Math.max(0, now.getTime() - impoundedAt.getTime());
+    // 0-24 цаг => 1 хоног, 24-48 цаг => 2 хоног гэх мэт (24 цаг дээр 2 болохоор floor + 1)
+    return Math.max(1, Math.floor(elapsedMs / dayMs) + 1);
+  };
+
+  const baseDailyFee = CAR_TYPE_OPTIONS.find((x) => x.value === data.car_type)?.penalty ?? 6000;
+  const computedNights = computeNightsFromImpoundedAt(data.impounded_at);
+  const computedImpoundFee = baseDailyFee * computedNights;
+  const computedTotalAmount = computedImpoundFee + data.transfer_fee;
+
   const handlePay = async () => {
     if (!caseData?.id) return;
     if (isPaid || isPendingPayment) return;
@@ -60,7 +74,7 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
       case_id: caseData.id,
       provider: 'qpay',
       transaction_id: transactionId,
-      amount: caseData.total_amount,
+      amount: computedTotalAmount,
       currency: 'MNT',
       payment_status: 'pending',
       paid_at: null,
@@ -77,6 +91,8 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
       .update({
         status: 'PENDING_PAYMENT',
         status_updated_at: new Date().toISOString(),
+        nights: computedNights,
+        impound_fee: computedImpoundFee,
       })
       .eq('id', caseData.id);
 
@@ -90,7 +106,7 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
         action: 'PAYMENT_CREATED',
         before_status: 'IMPOUNDED',
         after_status: 'PENDING_PAYMENT',
-        metadata: { transaction_id: transactionId, amount: caseData.total_amount },
+        metadata: { transaction_id: transactionId, amount: computedTotalAmount },
       });
       onCaseUpdated(caseData.id);
     }
@@ -164,7 +180,7 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
           <h2 className="text-on-secondary-container text-sm font-medium mb-1">Нийт төлөх дүн</h2>
           <div className="flex flex-col items-center">
             <span className="text-4xl md:text-5xl font-extrabold tracking-tight text-on-surface mb-2">
-              {formatMoney(data.total_amount)}
+              {formatMoney(computedTotalAmount)}
             </span>
             <div className="h-1 w-12 bg-primary rounded-full"></div>
           </div>
@@ -186,7 +202,7 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
             <div className="p-4 bg-surface-low rounded-lg">
               <p className="text-[10px] text-on-secondary-container uppercase tracking-wider mb-1">Саатуулах хашааны төлбөр</p>
-              <p className="text-lg font-bold text-on-surface">{formatMoney(data.impound_fee)}</p>
+              <p className="text-lg font-bold text-on-surface">{formatMoney(computedImpoundFee)}</p>
             </div>
             <div className="p-4 bg-surface-low rounded-lg">
               <p className="text-[10px] text-on-secondary-container uppercase tracking-wider mb-1">Зөөж шилжүүлсэн төлбөр</p>
@@ -200,7 +216,7 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
                 <Calendar className="text-outline-variant" size={18} />
                 <span className="text-sm font-medium text-on-secondary-container">Саатуулагдсан хоног</span>
               </div>
-              <span className="text-sm font-bold text-on-surface">{data.nights} өдөр</span>
+              <span className="text-sm font-bold text-on-surface">{computedNights} өдөр</span>
             </div>
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-3">
@@ -211,15 +227,18 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
             </div>
             <div className="text-xs text-on-secondary-container">
               {data.location === 'Хэрлэн сум дотор'
-                ? 'Хэрлэн сум дотор: 60,000₮'
-                : `Орон нутгаас: ${data.distance_km.toLocaleString('mn-MN')} км × 2,500₮`}
+                ? data.car_type === 'мотоцикл'
+                  ? 'Хэрлэн сум дотор: 30,000₮'
+                  : 'Хэрлэн сум дотор: 60,000₮'
+                : `Орон нутгаас: ${data.distance_km.toLocaleString('mn-MN')} км × 2 × 2,500₮`}
             </div>
           </div>
 
-          <div className="space-y-2 pt-2">
-            <p className="text-xs font-bold text-on-secondary-container uppercase tracking-wider">Зөвшөөрлийн хуудасны зураг</p>
+          <div className="space-y-3 pt-2 rounded-xl border-2 border-primary/20 bg-primary/5 p-4">
+            <p className="text-xs font-bold text-primary uppercase tracking-wider">Зөвшөөрлийн хуудасны зураг</p>
+            <p className="text-sm text-on-secondary-container">Цагдаагийн газраас авсан зөвшөөрлийн хуудсаа энд оруулна уу.</p>
             <input
-              className="w-full text-sm"
+              className="w-full text-sm bg-white border border-surface-high rounded-lg p-2"
               type="file"
               accept="image/*"
               onChange={(e) => setPermitFile(e.target.files?.[0] ?? null)}
