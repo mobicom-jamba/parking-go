@@ -14,14 +14,16 @@ import { useNavigate } from 'react-router-dom';
 interface PaymentDetailsProps {
   plateNumber: string;
   caseData: ParkingCase | null;
+  caseId?: string;
   onCaseUpdated: (id: string) => void;
   onBack: () => void;
 }
 
-export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, onBack }: PaymentDetailsProps) {
+export default function PaymentDetails({ plateNumber, caseData, caseId, onCaseUpdated, onBack }: PaymentDetailsProps) {
   const navigate = useNavigate();
   const [paying, setPaying] = useState(false);
   const [checkingPayment, setCheckingPayment] = useState(false);
+  const [loadedCase, setLoadedCase] = useState<ParkingCase | null>(null);
   const [qpayInvoice, setQpayInvoice] = useState<{
     invoice_id: string;
     qr_text: string;
@@ -33,7 +35,9 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
   const [permitFile, setPermitFile] = useState<File | null>(null);
   const [permitUploading, setPermitUploading] = useState(false);
   const [permitMessage, setPermitMessage] = useState('');
-  const data = caseData ?? {
+  const activeCase = caseData ?? loadedCase;
+  const resolvedCaseId = activeCase?.id ?? caseId ?? '';
+  const data = activeCase ?? {
     id: '',
     plate: plateNumber,
     impound_fee: 0,
@@ -73,37 +77,53 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
   const computedNights = computeNightsFromImpoundedAt(data.impounded_at);
   const computedImpoundFee = baseDailyFee * computedNights;
   const computedTotalAmount = computedImpoundFee + data.transfer_fee;
-  const invoiceCacheKey = caseData?.id ? `qpay-invoice:${caseData.id}` : null;
+  const invoiceCacheKey = resolvedCaseId ? `qpay-invoice:${resolvedCaseId}` : null;
+
+  useEffect(() => {
+    if (!caseId) return;
+    if (caseData?.id === caseId) return;
+
+    let cancelled = false;
+    const loadById = async () => {
+      const { data: row, error } = await supabase.from('parking_cases').select('*').eq('id', caseId).single();
+      if (cancelled || error || !row) return;
+      setLoadedCase(row as ParkingCase);
+    };
+    void loadById();
+    return () => {
+      cancelled = true;
+    };
+  }, [caseId, caseData?.id]);
 
   // While waiting for payment confirmation via QPay callback,
   // periodically refresh this case so UI updates without manual reload.
   useEffect(() => {
-    if (!caseData?.id) return;
+    if (!resolvedCaseId) return;
     if (data.status !== 'PENDING_PAYMENT') return;
 
     let cancelled = false;
     const interval = setInterval(async () => {
       if (cancelled) return;
-      await onCaseUpdated(caseData.id);
+      await onCaseUpdated(resolvedCaseId);
     }, 5000);
 
     return () => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [caseData?.id, data.status, onCaseUpdated]);
+  }, [resolvedCaseId, data.status, onCaseUpdated]);
 
   // If the case leaves PENDING_PAYMENT state (paid/failed/returned),
   // clear the displayed invoice so user can retry with a new one.
   useEffect(() => {
-    if (!caseData?.id) {
+    if (!resolvedCaseId) {
       setQpayInvoice(null);
       return;
     }
     if (data.status !== 'PENDING_PAYMENT') {
       setQpayInvoice(null);
     }
-  }, [caseData?.id, data.status]);
+  }, [resolvedCaseId, data.status]);
 
   useEffect(() => {
     if (!invoiceCacheKey || qpayInvoice) return;
@@ -121,7 +141,7 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
   }, [invoiceCacheKey, qpayInvoice, data.status]);
 
   const handlePay = async () => {
-    if (!caseData?.id) return;
+    if (!resolvedCaseId) return;
     if (isPaid) return;
     if (paying) return;
     if (qpayInvoice) return;
@@ -133,12 +153,12 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          caseId: caseData.id,
-          plate: caseData.plate,
+          caseId: resolvedCaseId,
+          plate: data.plate,
           amount: computedTotalAmount,
           impoundFee: computedImpoundFee,
           nights: computedNights,
-          invoiceDescription: `Parking fee for ${caseData.plate}`,
+          invoiceDescription: `Parking fee for ${data.plate}`,
         }),
       });
 
@@ -153,7 +173,7 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
       if (invoiceCacheKey) {
         window.localStorage.setItem(invoiceCacheKey, JSON.stringify(invoiceData));
       }
-      await onCaseUpdated(caseData.id);
+      await onCaseUpdated(resolvedCaseId);
     } catch {
       setQpayError('Сүлжээ/серверийн алдаа гарлаа. Дахин оролдоно уу.');
     } finally {
@@ -162,11 +182,11 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
   };
 
   const handleUploadPermit = async () => {
-    if (!caseData?.id || !permitFile) return;
+    if (!resolvedCaseId || !permitFile) return;
     setPermitUploading(true);
     setPermitMessage('');
 
-    const storagePath = `${caseData.id}/permit/${Date.now()}-${permitFile.name}`;
+    const storagePath = `${resolvedCaseId}/permit/${Date.now()}-${permitFile.name}`;
     const { error: uploadError } = await supabase.storage.from('impound-images').upload(storagePath, permitFile, {
       contentType: permitFile.type,
       upsert: false,
@@ -180,7 +200,7 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
 
     const { error: upsertError } = await supabase.from('parking_case_images').upsert(
       {
-        case_id: caseData.id,
+        case_id: resolvedCaseId,
         side: 'permit',
         storage_path: storagePath,
       },
@@ -197,14 +217,14 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
   };
 
   const handleCheckPayment = async () => {
-    if (!caseData?.id) return;
+    if (!resolvedCaseId) return;
     setQpayError('');
     setCheckingPayment(true);
     try {
       const res = await fetch('/api/qpay/payment/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ caseId: caseData.id }),
+        body: JSON.stringify({ caseId: resolvedCaseId }),
       });
       const json = await res.json();
 
@@ -213,7 +233,7 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
         return;
       }
 
-      await onCaseUpdated(caseData.id);
+      await onCaseUpdated(resolvedCaseId);
 
       if (json?.payment_status === 'success') {
         if (invoiceCacheKey) window.localStorage.removeItem(invoiceCacheKey);

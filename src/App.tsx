@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import TopBar from './components/TopBar';
 import Dashboard from './views/Dashboard';
@@ -46,7 +46,7 @@ export default function App() {
 
     setSearchedPlate(plate);
     setSelectedCase(data[0] as ParkingCase);
-    navigate('/payment');
+    navigate(`/payment/${(data[0] as ParkingCase).id}`);
   };
 
   const handlePlateSuggestions = async (platePrefix: string) => {
@@ -67,7 +67,7 @@ export default function App() {
     setSelectedCase(item);
     setSearchedPlate(item.plate);
     setSearchError('');
-    navigate('/payment');
+    navigate(`/payment/${item.id}`);
   };
 
   const handleBackToFineCheck = () => {
@@ -147,6 +147,19 @@ export default function App() {
     </div>
   );
 
+  const PaymentRoute = () => {
+    const { id } = useParams<{ id: string }>();
+    return (
+      <PaymentDetails
+        plateNumber={searchedPlate}
+        caseData={selectedCase}
+        caseId={id}
+        onCaseUpdated={(caseId) => void refreshSelectedCase(caseId)}
+        onBack={handleBackToFineCheck}
+      />
+    );
+  };
+
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/fine-check" replace />} />
@@ -162,17 +175,8 @@ export default function App() {
           />
         }
       />
-      <Route
-        path="/payment"
-        element={
-          <PaymentDetails
-            plateNumber={searchedPlate}
-            caseData={selectedCase}
-            onCaseUpdated={(id) => void refreshSelectedCase(id)}
-            onBack={handleBackToFineCheck}
-          />
-        }
-      />
+      <Route path="/payment" element={<Navigate to="/fine-check" replace />} />
+      <Route path="/payment/:id" element={<PaymentRoute />} />
       <Route path="/payment/success" element={<PaymentSuccess />} />
       <Route
         path="/admin/dashboard"
