@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -23,8 +23,6 @@ export default function FineChecker({ onSearch, onPlateSuggestions, onSelectCase
   const navigate = useNavigate();
   const [plateNumber, setPlateNumber] = useState('');
   const [formatError, setFormatError] = useState('');
-  const [suggestions, setSuggestions] = useState<ParkingCase[]>([]);
-  const [suggestionLoading, setSuggestionLoading] = useState(false);
 
   const PLATE_REGEX = /^\d{4}\s[А-ЯӨҮЁ]{3}$/;
 
@@ -54,23 +52,6 @@ export default function FineChecker({ onSearch, onPlateSuggestions, onSelectCase
       await handleSearch();
     }
   };
-
-  useEffect(() => {
-    const normalized = normalizePlateInput(plateNumber);
-    if (!normalized.trim()) {
-      setSuggestions([]);
-      return;
-    }
-
-    const timer = window.setTimeout(async () => {
-      setSuggestionLoading(true);
-      const results = await onPlateSuggestions(normalized);
-      setSuggestions(results);
-      setSuggestionLoading(false);
-    }, 350);
-
-    return () => window.clearTimeout(timer);
-  }, [plateNumber]);
 
   return (
     <div className="min-h-screen flex flex-col bg-surface">
@@ -162,29 +143,6 @@ export default function FineChecker({ onSearch, onPlateSuggestions, onSelectCase
                       <Tag size={28} />
                     </div>
                   </div>
-                  {(suggestionLoading || suggestions.length > 0) && (
-                    <div className="mt-2 bg-surface rounded-xl border border-surface-highest overflow-hidden max-h-56 overflow-y-auto">
-                      {suggestionLoading && (
-                        <div className="px-4 py-3 text-xs text-on-secondary-container">Хайж байна...</div>
-                      )}
-                      {!suggestionLoading &&
-                        suggestions.map((item) => (
-                          <button
-                            key={item.id}
-                            onClick={() => onSelectCase(item)}
-                            className="w-full text-left px-4 py-3 hover:bg-surface-low transition-colors border-b last:border-b-0 border-surface-low"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-on-surface">{item.plate}</span>
-                              <span className="text-xs text-on-secondary-container">{formatMoney(item.total_amount)}</span>
-                            </div>
-                            <p className="text-xs text-on-secondary-container mt-1">
-                              {item.car_type} • {item.district}
-                            </p>
-                          </button>
-                        ))}
-                    </div>
-                  )}
                 </div>
                 <button
                   onClick={handleSearch}

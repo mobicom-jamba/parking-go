@@ -247,33 +247,49 @@ export default function PaymentDetails({ plateNumber, caseData, caseId, onCaseUp
       </nav>
 
       <main className="w-full max-w-md px-4 md:px-6 py-6 md:py-8 flex-1 flex flex-col">
-        <section className="text-center mb-6 md:mb-10">
-          <div className="inline-flex items-center px-3 py-1 bg-primary/10 rounded-full mb-4">
-            {isReleased || isPaid ? (
-              <CircleCheckBig className="text-green-700 mr-2" size={14} />
-            ) : (
-              <AlertTriangle className="text-primary mr-2" size={14} />
-            )}
-            <span className="text-primary font-bold text-xs uppercase tracking-wider">
-              {isReleased
-                ? 'Машин гарсан'
-                : isPaid
-                  ? 'Төлбөр баталгаажсан'
-                  : isPendingPayment
-                    ? 'Төлбөр хүлээгдэж байна'
-                    : 'Төлөөгүй'}
-            </span>
-          </div>
-          <h2 className="text-on-secondary-container text-sm font-medium mb-1">Нийт төлөх дүн</h2>
-          <div className="flex flex-col items-center">
-            <span className="text-4xl md:text-5xl font-extrabold tracking-tight text-on-surface mb-2">
-              {formatMoney(computedTotalAmount)}
-            </span>
-            <div className="h-1 w-12 bg-primary rounded-full"></div>
-          </div>
-        </section>
+        {!qpayInvoice ? (
+          <section className="text-center mb-6 md:mb-10">
+            <div className="inline-flex items-center px-3 py-1 bg-primary/10 rounded-full mb-4">
+              {isReleased || isPaid ? (
+                <CircleCheckBig className="text-green-700 mr-2" size={14} />
+              ) : (
+                <AlertTriangle className="text-primary mr-2" size={14} />
+              )}
+              <span className="text-primary font-bold text-xs uppercase tracking-wider">
+                {isReleased
+                  ? 'Машин гарсан'
+                  : isPaid
+                    ? 'Төлбөр баталгаажсан'
+                    : isPendingPayment
+                      ? 'Төлбөр хүлээгдэж байна'
+                      : 'Төлөөгүй'}
+              </span>
+            </div>
+            <h2 className="text-on-secondary-container text-sm font-medium mb-1">Нийт төлөх дүн</h2>
+            <div className="flex flex-col items-center">
+              <span className="text-4xl md:text-5xl font-extrabold tracking-tight text-on-surface mb-2">
+                {formatMoney(computedTotalAmount)}
+              </span>
+              <div className="h-1 w-12 bg-primary rounded-full"></div>
+            </div>
+          </section>
+        ) : (
+          <section className="bg-white rounded-xl p-4 shadow-sm mb-4 border border-surface-high/60">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[11px] text-on-secondary-container uppercase tracking-wider">Улсын дугаар</p>
+                <p className="text-base font-black text-on-surface">{data.plate}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[11px] text-on-secondary-container uppercase tracking-wider">Нийт дүн</p>
+                <p className="text-lg font-black text-primary">{formatMoney(computedTotalAmount)}</p>
+              </div>
+            </div>
+          </section>
+        )}
 
-        <section className="bg-white rounded-xl p-4 md:p-6 shadow-sm mb-6 md:mb-8 space-y-5 md:space-y-6">
+        {!qpayInvoice && (
+          <section className="bg-white rounded-xl p-4 md:p-6 shadow-sm mb-6 md:mb-8 space-y-5 md:space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-lg bg-surface-low flex items-center justify-center">
@@ -347,7 +363,8 @@ export default function PaymentDetails({ plateNumber, caseData, caseId, onCaseUp
             </button>
             {permitMessage && <p className="text-sm font-semibold text-on-secondary-container">{permitMessage}</p>}
           </div>
-        </section>
+          </section>
+        )}
 
         {qpayInvoice && (
           <section className="bg-white rounded-xl p-4 md:p-5 shadow-sm mb-6 md:mb-8 space-y-3 border border-surface-high/60">
