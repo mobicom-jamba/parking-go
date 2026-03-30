@@ -356,21 +356,6 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
               <p className="text-xs text-on-secondary-container mt-1">QR-ийг банкны апп эсвэл дэмждэг wallet-ээр уншуулна уу.</p>
             </div>
 
-            <div className="rounded-lg bg-surface-low p-3 space-y-1">
-              <p className="text-[11px] text-on-secondary-container uppercase tracking-wider">Invoice ID</p>
-              <p className="text-xs font-mono break-all text-on-surface">{qpayInvoice.invoice_id}</p>
-              {qpayInvoice.qPay_shortUrl && (
-                <a
-                  className="text-xs font-semibold text-primary underline break-all"
-                  href={qpayInvoice.qPay_shortUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {qpayInvoice.qPay_shortUrl}
-                </a>
-              )}
-            </div>
-
             <div className="flex items-center justify-center">
               {qpayInvoice.qr_image ? (
                 <img
@@ -446,25 +431,27 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
         )}
 
         <div className="mt-auto pb-4 md:pb-6">
-          <button
-            onClick={handlePay}
-            disabled={isPaid || paying}
-            className="w-full bg-gradient-to-r from-primary to-primary-container text-white py-4 px-6 rounded-xl font-bold text-base shadow-lg active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-3 cursor-pointer hover:opacity-95 disabled:opacity-50"
-          >
-            {paying ? (
-              <>
-                <span className="inline-block w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                <span>Боловсруулж байна...</span>
-              </>
-            ) : (
-              <>
-                <span>
-                  {isReleased ? 'Машин гарсан' : isPaid ? 'Төлбөр баталгаажсан' : 'Төлбөр төлөх'}
-                </span>
-                <CreditCard size={20} />
-              </>
-            )}
-          </button>
+          {!qpayInvoice && (
+            <button
+              onClick={handlePay}
+              disabled={isPaid || paying}
+              className="w-full bg-gradient-to-r from-primary to-primary-container text-white py-4 px-6 rounded-xl font-bold text-base shadow-lg active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-3 cursor-pointer hover:opacity-95 disabled:opacity-50"
+            >
+              {paying ? (
+                <>
+                  <span className="inline-block w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  <span>Боловсруулж байна...</span>
+                </>
+              ) : (
+                <>
+                  <span>
+                    {isReleased ? 'Машин гарсан' : isPaid ? 'Төлбөр баталгаажсан' : 'Төлбөр төлөх'}
+                  </span>
+                  <CreditCard size={20} />
+                </>
+              )}
+            </button>
+          )}
           {qpayError && <p className="text-center text-sm font-semibold text-error mt-3 px-2">{qpayError}</p>}
           <p className="text-center text-[11px] text-on-secondary-container mt-4 px-6">
             {isReleased
