@@ -67,67 +67,33 @@ export default function WorkerQueue() {
 
   const verifyPayment = async (id: string, status: ParkingCase['status']) => {
     if (status !== 'PENDING_PAYMENT') return;
-    const pendingPayment = await supabase
-      .from('payments')
-      .select('id')
-      .eq('case_id', id)
-      .eq('payment_status', 'pending')
-      .limit(1);
-
-    if (pendingPayment.error) {
-      setMessage('Төлбөрийг унших үед алдаа гарлаа.');
-      return;
-    }
-    if (!pendingPayment.data || pendingPayment.data.length === 0) {
-      setMessage('Төлбөрийн pending бичлэг олдсонгүй.');
-      return;
-    }
-
     const confirmed = window.confirm('Энэ машины төлбөрийг баталгаажуулах уу?');
     if (!confirmed) return;
 
     setBusyId(id);
+    try {
+      const res = await fetch('/api/qpay/payment/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseId: id }),
+      });
+      const json = await res.json();
 
-    const { error: paymentError } = await supabase
-      .from('payments')
-      .update({ payment_status: 'success', paid_at: new Date().toISOString() })
-      .eq('case_id', id)
-      .eq('payment_status', 'pending');
+      if (!res.ok) {
+        setMessage(json?.error ?? 'Төлбөр шалгах үед алдаа гарлаа.');
+        return;
+      }
 
-    if (paymentError) {
+      if (json?.payment_status === 'success') setMessage('Төлбөр баталгаажсан.');
+      else if (json?.payment_status === 'failed') setMessage('Төлбөр амжилтгүй (failed) байна.');
+      else setMessage('Одоогоор төлбөр хараахан баталгаажаагүй байна.');
+
+      await loadCases();
+    } catch {
+      setMessage('Сүлжээ/серверийн алдаа гарлаа.');
+    } finally {
       setBusyId(null);
-      setMessage('Төлбөр баталгаажуулах үед алдаа гарлаа.');
-      return;
     }
-
-    const { error: caseError } = await supabase
-      .from('parking_cases')
-      .update({
-        status: 'PAID',
-        status_updated_at: new Date().toISOString(),
-        paid_at: new Date().toISOString(),
-      })
-      .eq('id', id);
-
-    setBusyId(null);
-
-    if (caseError) {
-      setMessage('Case status шинэчлэх үед алдаа гарлаа.');
-      return;
-    }
-
-    await supabase.from('audit_logs').insert({
-      actor_name: 'Ажилтан',
-      actor_role: 'worker',
-      case_id: id,
-      action: 'PAYMENT_VERIFIED',
-      before_status: 'PENDING_PAYMENT',
-      after_status: 'PAID',
-      metadata: {},
-    });
-
-    setMessage('Төлбөр баталгаажсан.');
-    await loadCases();
   };
 
   const markReady = async (id: string, status: ParkingCase['status']) => {

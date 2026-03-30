@@ -8,7 +8,7 @@ import {
   CircleCheckBig
 } from 'lucide-react';
 import { formatMoney, supabase, type ParkingCase, CAR_TYPE_OPTIONS } from '../lib/supabase';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface PaymentDetailsProps {
   plateNumber: string;
@@ -19,6 +19,13 @@ interface PaymentDetailsProps {
 
 export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, onBack }: PaymentDetailsProps) {
   const [paying, setPaying] = useState(false);
+  const [qpayInvoice, setQpayInvoice] = useState<{
+    invoice_id: string;
+    qr_text: string;
+    qr_image: string;
+    urls?: Array<{ name: string; link: string }>;
+  } | null>(null);
+  const [qpayError, setQpayError] = useState('');
   const [permitFile, setPermitFile] = useState<File | null>(null);
   const [permitUploading, setPermitUploading] = useState(false);
   const [permitMessage, setPermitMessage] = useState('');
@@ -63,52 +70,70 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
   const computedImpoundFee = baseDailyFee * computedNights;
   const computedTotalAmount = computedImpoundFee + data.transfer_fee;
 
+  // While waiting for payment confirmation via QPay callback,
+  // periodically refresh this case so UI updates without manual reload.
+  useEffect(() => {
+    if (!caseData?.id) return;
+    if (data.status !== 'PENDING_PAYMENT') return;
+
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      if (cancelled) return;
+      await onCaseUpdated(caseData.id);
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [caseData?.id, data.status, onCaseUpdated]);
+
+  // If the case leaves PENDING_PAYMENT state (paid/failed/returned),
+  // clear the displayed invoice so user can retry with a new one.
+  useEffect(() => {
+    if (!caseData?.id) {
+      setQpayInvoice(null);
+      return;
+    }
+    if (data.status !== 'PENDING_PAYMENT') {
+      setQpayInvoice(null);
+    }
+  }, [caseData?.id, data.status]);
+
   const handlePay = async () => {
     if (!caseData?.id) return;
     if (isPaid || isPendingPayment) return;
     if (paying) return;
+    if (qpayInvoice) return;
+
+    setQpayError('');
     setPaying(true);
-    const transactionId = `mock_${Date.now()}`;
-
-    const { error: paymentError } = await supabase.from('payments').insert({
-      case_id: caseData.id,
-      provider: 'qpay',
-      transaction_id: transactionId,
-      amount: computedTotalAmount,
-      currency: 'MNT',
-      payment_status: 'pending',
-      paid_at: null,
-      failed_at: null,
-    });
-
-    if (paymentError) {
-      setPaying(false);
-      return;
-    }
-
-    const { error: caseError } = await supabase
-      .from('parking_cases')
-      .update({
-        status: 'PENDING_PAYMENT',
-        status_updated_at: new Date().toISOString(),
-        nights: computedNights,
-        impound_fee: computedImpoundFee,
-      })
-      .eq('id', caseData.id);
-
-    setPaying(false);
-
-    if (!caseError) {
-      await supabase.from('audit_logs').insert({
-        actor_name: 'Хэрэглэгч',
-        actor_role: 'user',
-        case_id: caseData.id,
-        action: 'PAYMENT_CREATED',
-        before_status: 'IMPOUNDED',
-        after_status: 'PENDING_PAYMENT',
-        metadata: { transaction_id: transactionId, amount: computedTotalAmount },
+    try {
+      const res = await fetch('/api/qpay/invoice/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          caseId: caseData.id,
+          plate: caseData.plate,
+          amount: computedTotalAmount,
+          impoundFee: computedImpoundFee,
+          nights: computedNights,
+          invoiceDescription: `Parking fee for ${caseData.plate}`,
+        }),
       });
-      onCaseUpdated(caseData.id);
+
+      const json = await res.json();
+      if (!res.ok) {
+        setQpayError(json?.error ?? 'QPay invoice үүсгэхэд алдаа гарлаа.');
+        return;
+      }
+
+      setQpayInvoice(json?.invoice ?? json);
+      await onCaseUpdated(caseData.id);
+    } catch {
+      setQpayError('Сүлжээ/серверийн алдаа гарлаа. Дахин оролдоно уу.');
+    } finally {
+      setPaying(false);
     }
   };
 
@@ -262,10 +287,48 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
           </div>
         </section>
 
+        {qpayInvoice && (
+          <section className="bg-white rounded-xl p-4 md:p-5 shadow-sm mb-6 md:mb-8 space-y-3 border border-surface-high/60">
+            <div>
+              <p className="text-sm font-bold text-on-surface">QPay QR код</p>
+              <p className="text-xs text-on-secondary-container mt-1">QR-ийг банкны апп эсвэл дэмждэг wallet-ээр уншуулна уу.</p>
+            </div>
+
+            <div className="flex items-center justify-center">
+              <img
+                className="w-56 max-w-full h-auto rounded-lg border border-surface-high/70 bg-white"
+                src={`data:image/png;base64,${qpayInvoice.qr_image}`}
+                alt="QPay QR"
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {qpayInvoice.urls?.[0]?.link && (
+                <button
+                  className="flex-1 min-w-[160px] bg-gradient-to-r from-primary to-primary-container text-white py-3 rounded-xl font-bold text-base shadow-lg active:scale-[0.98] transition-all duration-150 cursor-pointer hover:opacity-95"
+                  onClick={() => {
+                    window.location.href = qpayInvoice.urls?.[0]?.link;
+                  }}
+                >
+                  Deeplink-ээр нээх
+                </button>
+              )}
+              <button
+                className="flex-1 min-w-[160px] bg-surface-low text-on-surface py-3 rounded-xl font-bold text-base border border-surface-high/60 active:scale-[0.98] transition-all duration-150 cursor-pointer hover:bg-surface-low/70"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(qpayInvoice.qr_text);
+                }}
+              >
+                QR утгыг хуулах
+              </button>
+            </div>
+          </section>
+        )}
+
         <div className="mt-auto pb-4 md:pb-6">
           <button
             onClick={handlePay}
-            disabled={isPaid || isPendingPayment || paying}
+            disabled={isPaid || isPendingPayment || paying || !!qpayInvoice}
             className="w-full bg-gradient-to-r from-primary to-primary-container text-white py-4 px-6 rounded-xl font-bold text-base shadow-lg active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-3 cursor-pointer hover:opacity-95 disabled:opacity-50"
           >
             {paying ? (
@@ -282,6 +345,7 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
               </>
             )}
           </button>
+          {qpayError && <p className="text-center text-sm font-semibold text-error mt-3 px-2">{qpayError}</p>}
           <p className="text-center text-[11px] text-on-secondary-container mt-4 px-6">
             {isReleased
               ? 'Таны машиныг гаргасан байна.'
