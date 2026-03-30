@@ -36,6 +36,7 @@ export default function PaymentDetails({ plateNumber, caseData, caseId, onCaseUp
   const [permitUploading, setPermitUploading] = useState(false);
   const [permitMessage, setPermitMessage] = useState('');
   const activeCase = caseData ?? loadedCase;
+  const hasRealCase = !!activeCase;
   const resolvedCaseId = activeCase?.id ?? caseId ?? '';
   const data = activeCase ?? {
     id: '',
@@ -95,38 +96,17 @@ export default function PaymentDetails({ plateNumber, caseData, caseId, onCaseUp
     };
   }, [caseId, caseData?.id]);
 
-  // While waiting for payment confirmation via QPay callback,
-  // periodically refresh this case so UI updates without manual reload.
-  useEffect(() => {
-    if (!resolvedCaseId) return;
-    if (data.status !== 'PENDING_PAYMENT') return;
-
-    let cancelled = false;
-    const interval = setInterval(async () => {
-      if (cancelled) return;
-      await onCaseUpdated(resolvedCaseId);
-    }, 5000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [resolvedCaseId, data.status, onCaseUpdated]);
-
   // If the case leaves PENDING_PAYMENT state (paid/failed/returned),
   // clear the displayed invoice so user can retry with a new one.
   useEffect(() => {
-    if (!resolvedCaseId) {
-      setQpayInvoice(null);
-      return;
-    }
+    if (!resolvedCaseId || !hasRealCase) return;
     if (data.status !== 'PENDING_PAYMENT') {
       setQpayInvoice(null);
     }
-  }, [resolvedCaseId, data.status]);
+  }, [resolvedCaseId, data.status, hasRealCase]);
 
   useEffect(() => {
-    if (!invoiceCacheKey || qpayInvoice) return;
+    if (!invoiceCacheKey || qpayInvoice || !hasRealCase) return;
     if (data.status !== 'PENDING_PAYMENT') return;
     try {
       const raw = window.localStorage.getItem(invoiceCacheKey);
@@ -138,7 +118,7 @@ export default function PaymentDetails({ plateNumber, caseData, caseId, onCaseUp
     } catch {
       // ignore
     }
-  }, [invoiceCacheKey, qpayInvoice, data.status]);
+  }, [invoiceCacheKey, qpayInvoice, data.status, hasRealCase]);
 
   const handlePay = async () => {
     if (!resolvedCaseId) return;
