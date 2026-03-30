@@ -73,6 +73,7 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
   const computedNights = computeNightsFromImpoundedAt(data.impounded_at);
   const computedImpoundFee = baseDailyFee * computedNights;
   const computedTotalAmount = computedImpoundFee + data.transfer_fee;
+  const invoiceCacheKey = caseData?.id ? `qpay-invoice:${caseData.id}` : null;
 
   // While waiting for payment confirmation via QPay callback,
   // periodically refresh this case so UI updates without manual reload.
@@ -104,17 +105,31 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
     }
   }, [caseData?.id, data.status]);
 
+  useEffect(() => {
+    if (!invoiceCacheKey || qpayInvoice) return;
+    if (data.status !== 'PENDING_PAYMENT') return;
+    try {
+      const raw = window.localStorage.getItem(invoiceCacheKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.invoice_id && parsed?.qr_text) {
+        setQpayInvoice(parsed);
+      }
+    } catch {
+      // ignore
+    }
+  }, [invoiceCacheKey, qpayInvoice, data.status]);
+
   const handlePay = async () => {
     if (!caseData?.id) return;
     if (isPaid) return;
     if (paying) return;
-    if (qpayInvoice && !isPendingPayment) return;
+    if (qpayInvoice) return;
 
     setQpayError('');
     setPaying(true);
     try {
-      const endpoint = isPendingPayment ? '/api/qpay/invoice/get' : '/api/qpay/invoice/create';
-      const res = await fetch(endpoint, {
+      const res = await fetch('/api/qpay/invoice/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -129,11 +144,15 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
 
       const json = await res.json();
       if (!res.ok) {
-        setQpayError(json?.error ?? (isPendingPayment ? 'QPay нэхэмжлэл татахад алдаа гарлаа.' : 'QPay invoice үүсгэхэд алдаа гарлаа.'));
+        setQpayError(json?.error ?? 'QPay invoice үүсгэхэд алдаа гарлаа.');
         return;
       }
 
-      setQpayInvoice(json?.invoice ?? json);
+      const invoiceData = json?.invoice ?? json;
+      setQpayInvoice(invoiceData);
+      if (invoiceCacheKey) {
+        window.localStorage.setItem(invoiceCacheKey, JSON.stringify(invoiceData));
+      }
       await onCaseUpdated(caseData.id);
     } catch {
       setQpayError('Сүлжээ/серверийн алдаа гарлаа. Дахин оролдоно уу.');
@@ -197,6 +216,7 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
       await onCaseUpdated(caseData.id);
 
       if (json?.payment_status === 'success') {
+        if (invoiceCacheKey) window.localStorage.removeItem(invoiceCacheKey);
         navigate('/payment/success');
         return;
       }
@@ -352,11 +372,17 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
             </div>
 
             <div className="flex items-center justify-center">
-              <img
-                className="w-56 max-w-full h-auto rounded-lg border border-surface-high/70 bg-white"
-                src={`data:image/png;base64,${qpayInvoice.qr_image}`}
-                alt="QPay QR"
-              />
+              {qpayInvoice.qr_image ? (
+                <img
+                  className="w-56 max-w-full h-auto rounded-lg border border-surface-high/70 bg-white"
+                  src={`data:image/png;base64,${qpayInvoice.qr_image}`}
+                  alt="QPay QR"
+                />
+              ) : (
+                <div className="w-full rounded-lg border border-surface-high/70 bg-surface-low p-3 text-xs text-on-secondary-container text-center">
+                  QR мэдээлэл дутуу байна. Доорх аппын жагсаалтаар нээж төлбөрөө хийнэ үү.
+                </div>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-2">

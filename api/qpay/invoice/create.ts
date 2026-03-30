@@ -37,7 +37,12 @@ export default async function handler(req: any, res: any) {
     const invoiceCode = requireEnv('QPAY_INVOICE_CODE');
     const invoiceReceiverCode = requireEnv('QPAY_INVOICE_RECEIVER_CODE');
     const senderBranchCode = requireEnv('QPAY_SENDER_BRANCH_CODE');
-    const callbackUrl = requireEnv('QPAY_CALLBACK_URL');
+    const callbackBase = requireEnv('QPAY_CALLBACK_URL');
+    const callbackParsed = new URL(callbackBase);
+    // Keep case context in callback so we can safely resolve pending payment
+    // even when payment_id is not populated on callback URL.
+    callbackParsed.searchParams.set('case_id', caseId);
+    const callbackUrl = callbackParsed.toString();
 
     // QPay invoice create: sender_invoice_no must be unique and <= 45 chars.
     const senderInvoiceNo = buildSenderInvoiceNo(caseId);

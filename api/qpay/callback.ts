@@ -34,35 +34,57 @@ export default async function handler(req: any, res: any) {
       url.searchParams.get('paymentId') ||
       url.searchParams.get('payment_id'.toUpperCase());
 
+    const queryCaseId = url.searchParams.get('case_id') || url.searchParams.get('caseId');
     const body = await readJsonBody(req);
     const bodyPaymentId = body?.payment_id ?? body?.paymentId;
+    const bodyCaseId = body?.case_id ?? body?.caseId;
 
     const paymentId = (queryPaymentId ?? bodyPaymentId) as string | undefined;
-    if (!paymentId) {
-      res.status(400).json({ error: 'Missing payment_id in callback' });
+    const caseId = (queryCaseId ?? bodyCaseId) as string | undefined;
+    if (!paymentId && !caseId) {
+      res.status(400).json({ error: 'Missing payment_id/case_id in callback' });
       return;
     }
 
     const supabase: any = getSupabaseServer();
+    let resolvedObjectId = paymentId;
+    let paymentRow: { id: string; case_id: string; transaction_id?: string } | null = null;
 
-    const check = await qpayCheckInvoice({ objectId: paymentId });
+    if (!resolvedObjectId && caseId) {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('id, case_id, transaction_id')
+        .eq('provider', 'qpay')
+        .eq('case_id', caseId)
+        .eq('payment_status', 'pending')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      paymentRow = data;
+      resolvedObjectId = data?.transaction_id;
+    }
+    if (!resolvedObjectId) {
+      res.status(200).json({ ok: false, error: 'No payment identifier to verify' });
+      return;
+    }
+
+    const check = await qpayCheckInvoice({ objectId: resolvedObjectId });
     const firstRow = check?.rows?.[0];
     const normalized = normalizePaymentStatus(firstRow?.payment_status);
-
     const nowIso = isoNow();
 
     // Find pending payment record by transaction_id.
     // Primary: transaction_id == callback paymentId.
-    let paymentRow: { id: string; case_id: string } | null = null;
-    {
+    if (!paymentRow) {
       const { data, error } = await supabase
-      .from('payments')
-      .select('id, case_id')
-      .eq('provider', 'qpay')
-      .eq('transaction_id', paymentId)
-      .eq('payment_status', 'pending')
-      .limit(1)
-      .maybeSingle();
+        .from('payments')
+        .select('id, case_id')
+        .eq('provider', 'qpay')
+        .eq('transaction_id', resolvedObjectId)
+        .eq('payment_status', 'pending')
+        .limit(1)
+        .maybeSingle();
       if (error) throw error;
       paymentRow = data;
     }
@@ -112,7 +134,7 @@ export default async function handler(req: any, res: any) {
         action: 'PAYMENT_QPAY_CALLBACK_PAID',
         before_status: 'PENDING_PAYMENT',
         after_status: 'PAID',
-        metadata: { payment_id: firstRow?.payment_id ?? paymentId },
+        metadata: { payment_id: firstRow?.payment_id ?? resolvedObjectId },
       });
 
       res.status(200).json({ ok: true, payment_status: 'success' });
@@ -140,7 +162,7 @@ export default async function handler(req: any, res: any) {
         action: 'PAYMENT_QPAY_CALLBACK_FAILED',
         before_status: 'PENDING_PAYMENT',
         after_status: 'IMPOUNDED',
-        metadata: { payment_id: firstRow?.payment_id ?? paymentId },
+        metadata: { payment_id: firstRow?.payment_id ?? resolvedObjectId },
       });
 
       res.status(200).json({ ok: true, payment_status: 'failed' });
