@@ -23,7 +23,8 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
     invoice_id: string;
     qr_text: string;
     qr_image: string;
-    urls?: Array<{ name: string; link: string }>;
+    qPay_shortUrl?: string;
+    urls?: Array<{ name: string; description?: string; logo?: string; link: string }>;
   } | null>(null);
   const [qpayError, setQpayError] = useState('');
   const [permitFile, setPermitFile] = useState<File | null>(null);
@@ -290,8 +291,23 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
         {qpayInvoice && (
           <section className="bg-white rounded-xl p-4 md:p-5 shadow-sm mb-6 md:mb-8 space-y-3 border border-surface-high/60">
             <div>
-              <p className="text-sm font-bold text-on-surface">QPay QR код</p>
+              <p className="text-sm font-bold text-green-700">Амжилттай! QPay нэхэмжлэл үүслээ.</p>
               <p className="text-xs text-on-secondary-container mt-1">QR-ийг банкны апп эсвэл дэмждэг wallet-ээр уншуулна уу.</p>
+            </div>
+
+            <div className="rounded-lg bg-surface-low p-3 space-y-1">
+              <p className="text-[11px] text-on-secondary-container uppercase tracking-wider">Invoice ID</p>
+              <p className="text-xs font-mono break-all text-on-surface">{qpayInvoice.invoice_id}</p>
+              {qpayInvoice.qPay_shortUrl && (
+                <a
+                  className="text-xs font-semibold text-primary underline break-all"
+                  href={qpayInvoice.qPay_shortUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {qpayInvoice.qPay_shortUrl}
+                </a>
+              )}
             </div>
 
             <div className="flex items-center justify-center">
@@ -322,6 +338,35 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
                 QR утгыг хуулах
               </button>
             </div>
+
+            {!!qpayInvoice.urls?.length && (
+              <div className="space-y-2">
+                <p className="text-xs font-bold text-on-secondary-container uppercase tracking-wider">Бүх апп / банк</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {qpayInvoice.urls.map((item) => (
+                    <button
+                      key={`${item.name}-${item.link}`}
+                      className="w-full bg-white border border-surface-high rounded-lg p-2 text-left hover:bg-surface-low/40 transition-colors"
+                      onClick={() => {
+                        window.location.href = item.link;
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        {item.logo ? (
+                          <img src={item.logo} alt={item.name} className="w-8 h-8 rounded-md object-cover border border-surface-high" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-md bg-surface-low border border-surface-high" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-on-surface truncate">{item.name}</p>
+                          {item.description && <p className="text-[11px] text-on-secondary-container truncate">{item.description}</p>}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </section>
         )}
 

@@ -6,6 +6,14 @@ function isoNow() {
   return new Date().toISOString();
 }
 
+function buildSenderInvoiceNo(caseId: string) {
+  // QPay constraint: max length 45.
+  // Keep uniqueness via timestamp while preserving case traceability.
+  const compactCaseId = caseId.replace(/-/g, '').slice(0, 20);
+  const ts = Date.now().toString(36);
+  return `p${compactCaseId}${ts}`.slice(0, 45);
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
@@ -31,8 +39,8 @@ export default async function handler(req: any, res: any) {
     const senderBranchCode = requireEnv('QPAY_SENDER_BRANCH_CODE');
     const callbackUrl = requireEnv('QPAY_CALLBACK_URL');
 
-    // QPay invoice create: sender_invoice_no нь давтагдашгүй байх ёстой.
-    const senderInvoiceNo = `${caseId}_${Date.now()}`;
+    // QPay invoice create: sender_invoice_no must be unique and <= 45 chars.
+    const senderInvoiceNo = buildSenderInvoiceNo(caseId);
 
     const invoice = await qpayCreateInvoice({
       invoiceCode,
