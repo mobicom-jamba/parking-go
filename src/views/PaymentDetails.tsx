@@ -390,27 +390,6 @@ export default function PaymentDetails({ plateNumber, caseData, caseId, onCaseUp
               )}
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {qpayInvoice.urls?.[0]?.link && (
-                <button
-                  className="flex-1 min-w-[160px] bg-gradient-to-r from-primary to-primary-container text-white py-3 rounded-xl font-bold text-base shadow-lg active:scale-[0.98] transition-all duration-150 cursor-pointer hover:opacity-95"
-                  onClick={() => {
-                    window.location.href = qpayInvoice.urls?.[0]?.link;
-                  }}
-                >
-                  Deeplink-ээр нээх
-                </button>
-              )}
-              <button
-                className="flex-1 min-w-[160px] bg-surface-low text-on-surface py-3 rounded-xl font-bold text-base border border-surface-high/60 active:scale-[0.98] transition-all duration-150 cursor-pointer hover:bg-surface-low/70"
-                onClick={() => {
-                  void navigator.clipboard?.writeText(qpayInvoice.qr_text);
-                }}
-              >
-                QR утгыг хуулах
-              </button>
-            </div>
-
             <button
               onClick={() => void handleCheckPayment()}
               disabled={checkingPayment}
