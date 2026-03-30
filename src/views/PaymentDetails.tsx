@@ -103,14 +103,15 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
 
   const handlePay = async () => {
     if (!caseData?.id) return;
-    if (isPaid || isPendingPayment) return;
+    if (isPaid) return;
     if (paying) return;
-    if (qpayInvoice) return;
+    if (qpayInvoice && !isPendingPayment) return;
 
     setQpayError('');
     setPaying(true);
     try {
-      const res = await fetch('/api/qpay/invoice/create', {
+      const endpoint = isPendingPayment ? '/api/qpay/invoice/get' : '/api/qpay/invoice/create';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -125,7 +126,7 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
 
       const json = await res.json();
       if (!res.ok) {
-        setQpayError(json?.error ?? 'QPay invoice үүсгэхэд алдаа гарлаа.');
+        setQpayError(json?.error ?? (isPendingPayment ? 'QPay нэхэмжлэл татахад алдаа гарлаа.' : 'QPay invoice үүсгэхэд алдаа гарлаа.'));
         return;
       }
 
@@ -373,7 +374,7 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
         <div className="mt-auto pb-4 md:pb-6">
           <button
             onClick={handlePay}
-            disabled={isPaid || isPendingPayment || paying || !!qpayInvoice}
+            disabled={isPaid || paying}
             className="w-full bg-gradient-to-r from-primary to-primary-container text-white py-4 px-6 rounded-xl font-bold text-base shadow-lg active:scale-[0.98] transition-all duration-150 flex items-center justify-center gap-3 cursor-pointer hover:opacity-95 disabled:opacity-50"
           >
             {paying ? (
@@ -384,7 +385,13 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
             ) : (
               <>
                 <span>
-                  {isReleased ? 'Машин гарсан' : isPaid ? 'Төлбөр баталгаажсан' : isPendingPayment ? 'Хүлээгдэж байна' : 'Төлбөр төлөх'}
+                  {isReleased
+                    ? 'Машин гарсан'
+                    : isPaid
+                      ? 'Төлбөр баталгаажсан'
+                      : isPendingPayment
+                        ? 'QPay QR дахин харах'
+                        : 'Төлбөр төлөх'}
                 </span>
                 <CreditCard size={20} />
               </>

@@ -132,6 +132,30 @@ export async function qpayCreateInvoice(params: {
   return parsed as QPayInvoiceCreateResponse;
 }
 
+export async function qpayGetInvoice(params: { invoiceId: string }) {
+  const token = await qpayGetAccessToken();
+  const baseUrl = getQpayBaseUrl();
+  const url = `${baseUrl}/v2/invoice/${params.invoiceId}`;
+
+  const res = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const bodyText = await res.text();
+  if (!res.ok) {
+    throw new Error(`QPay invoice get failed: ${res.status} ${bodyText}`);
+  }
+
+  const parsed = parseMaybeJson(bodyText);
+  if (!parsed) {
+    throw new Error(`QPay invoice get returned non-JSON body: ${bodyText}`);
+  }
+  return parsed as QPayInvoiceCreateResponse;
+}
+
 export async function qpayCheckInvoice(params: { objectId: string }) {
   const token = await qpayGetAccessToken();
   const baseUrl = getQpayBaseUrl();
