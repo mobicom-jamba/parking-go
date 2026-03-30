@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { formatMoney, supabase, type ParkingCase, CAR_TYPE_OPTIONS } from '../lib/supabase';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface PaymentDetailsProps {
   plateNumber: string;
@@ -18,7 +19,9 @@ interface PaymentDetailsProps {
 }
 
 export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, onBack }: PaymentDetailsProps) {
+  const navigate = useNavigate();
   const [paying, setPaying] = useState(false);
+  const [checkingPayment, setCheckingPayment] = useState(false);
   const [qpayInvoice, setQpayInvoice] = useState<{
     invoice_id: string;
     qr_text: string;
@@ -172,6 +175,43 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
     }
 
     setPermitMessage('Зөвшөөрлийн хуудасны зураг амжилттай хадгалагдлаа.');
+  };
+
+  const handleCheckPayment = async () => {
+    if (!caseData?.id) return;
+    setQpayError('');
+    setCheckingPayment(true);
+    try {
+      const res = await fetch('/api/qpay/payment/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caseId: caseData.id }),
+      });
+      const json = await res.json();
+
+      if (!res.ok) {
+        setQpayError(json?.error ?? 'Төлбөр шалгахад алдаа гарлаа.');
+        return;
+      }
+
+      await onCaseUpdated(caseData.id);
+
+      if (json?.payment_status === 'success') {
+        navigate('/payment/success');
+        return;
+      }
+
+      if (json?.payment_status === 'failed') {
+        setQpayError('Төлбөр амжилтгүй байна. Дахин оролдоно уу.');
+        return;
+      }
+
+      setQpayError('Одоогоор төлбөр төлөгдөөгүй байна.');
+    } catch {
+      setQpayError('Сүлжээ/серверийн алдаа гарлаа. Дахин оролдоно уу.');
+    } finally {
+      setCheckingPayment(false);
+    }
   };
 
   return (
@@ -340,6 +380,14 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
               </button>
             </div>
 
+            <button
+              onClick={() => void handleCheckPayment()}
+              disabled={checkingPayment}
+              className="w-full bg-primary text-white py-3 rounded-xl font-bold text-base shadow-lg active:scale-[0.98] transition-all duration-150 cursor-pointer hover:opacity-95 disabled:opacity-50"
+            >
+              {checkingPayment ? 'Шалгаж байна...' : 'Төлбөр шалгах'}
+            </button>
+
             {!!qpayInvoice.urls?.length && (
               <div className="space-y-2">
                 <p className="text-xs font-bold text-on-secondary-container uppercase tracking-wider">Бүх апп / банк</p>
@@ -385,13 +433,7 @@ export default function PaymentDetails({ plateNumber, caseData, onCaseUpdated, o
             ) : (
               <>
                 <span>
-                  {isReleased
-                    ? 'Машин гарсан'
-                    : isPaid
-                      ? 'Төлбөр баталгаажсан'
-                      : isPendingPayment
-                        ? 'QPay QR дахин харах'
-                        : 'Төлбөр төлөх'}
+                  {isReleased ? 'Машин гарсан' : isPaid ? 'Төлбөр баталгаажсан' : 'Төлбөр төлөх'}
                 </span>
                 <CreditCard size={20} />
               </>

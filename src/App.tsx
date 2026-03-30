@@ -6,6 +6,7 @@ import Dashboard from './views/Dashboard';
 import Registration from './views/Registration';
 import FineChecker from './views/FineChecker';
 import PaymentDetails from './views/PaymentDetails';
+import PaymentSuccess from './views/PaymentSuccess';
 import WorkerQueue from './views/WorkerQueue';
 import { formatRole, supabase, type ParkingCase, type UserRole } from './lib/supabase';
 
@@ -172,6 +173,7 @@ export default function App() {
           />
         }
       />
+      <Route path="/payment/success" element={<PaymentSuccess />} />
       <Route
         path="/admin/dashboard"
         element={
