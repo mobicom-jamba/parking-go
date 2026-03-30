@@ -1,4 +1,4 @@
-import { getEnv, requireEnv } from './env';
+import { getEnv, requireEnv } from './env.js';
 
 const DEFAULT_QPAY_BASE_URL = 'https://merchant.qpay.mn';
 

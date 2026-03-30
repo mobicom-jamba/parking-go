@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { getEnv, requireEnv } from './env';
+import { getEnv, requireEnv } from './env.js';
 
 let supabaseSingleton: any | null = null;
 

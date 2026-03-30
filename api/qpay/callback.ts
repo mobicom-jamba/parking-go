@@ -1,5 +1,5 @@
-import { qpayCheckInvoice } from './_lib/qpayClient';
-import { getSupabaseServer } from './_lib/supabaseServer';
+import { qpayCheckInvoice } from './_lib/qpayClient.js';
+import { getSupabaseServer } from './_lib/supabaseServer.js';
 
 function isoNow() {
   return new Date().toISOString();
